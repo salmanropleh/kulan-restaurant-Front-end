@@ -1,10 +1,103 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Clock, Heart } from "lucide-react";
 import { featuredItems } from "../../data/menuData";
+import Toast from "../ui/Toast";
 
 const MenuPreview = () => {
+  const [favorites, setFavorites] = useState([]);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const navigate = useNavigate();
+
+  // Load favorites from localStorage on component mount
+  useEffect(() => {
+    const savedFavorites = localStorage.getItem("kulanFavorites");
+    if (savedFavorites) {
+      setFavorites(JSON.parse(savedFavorites));
+    }
+  }, []);
+
+  // Save favorites to localStorage whenever favorites change
+  useEffect(() => {
+    localStorage.setItem("kulanFavorites", JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = (itemId) => {
+    let newFavorites;
+    const isCurrentlyFavorite = favorites.includes(itemId);
+
+    if (isCurrentlyFavorite) {
+      // Remove from favorites
+      newFavorites = favorites.filter((id) => id !== itemId);
+      setSuccessMessage("Item removed from favorites");
+    } else {
+      // Add to favorites
+      newFavorites = [...favorites, itemId];
+      setSuccessMessage("Item added to favorites!");
+    }
+
+    setFavorites(newFavorites);
+    setShowSuccess(true);
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
+  };
+
+  const handleAddToOrder = (item) => {
+    // Get current cart from localStorage or initialize empty array
+    const currentCart = JSON.parse(localStorage.getItem("kulanCart") || "[]");
+
+    // Check if item already exists in cart
+    const existingItemIndex = currentCart.findIndex(
+      (cartItem) => cartItem.id === item.id
+    );
+
+    if (existingItemIndex > -1) {
+      // If item exists, increase quantity
+      currentCart[existingItemIndex].quantity += 1;
+    } else {
+      // If item doesn't exist, add new item
+      currentCart.push({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        image: item.image,
+        description: item.description,
+        quantity: 1,
+        category: item.category || "featured",
+      });
+    }
+
+    // Save updated cart to localStorage
+    localStorage.setItem("kulanCart", JSON.stringify(currentCart));
+
+    // Show success message
+    setSuccessMessage(`🎉 ${item.name} added to cart!`);
+    setShowSuccess(true);
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
+  };
+
+  const isFavorite = (itemId) => {
+    return favorites.includes(itemId);
+  };
+
   return (
     <section className="py-20 bg-white">
+      {/* Toast Component */}
+      <Toast
+        message={successMessage}
+        isVisible={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        type="success"
+      />
+
       <div className="container-custom section-padding">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-display font-bold text-gray-900 mb-4">
@@ -20,7 +113,7 @@ const MenuPreview = () => {
           {featuredItems.slice(0, 3).map((item) => (
             <div
               key={item.id}
-              className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
+              className="group bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-transparent hover:border-primary"
             >
               <div className="relative overflow-hidden h-64">
                 <img
@@ -33,6 +126,19 @@ const MenuPreview = () => {
                     Most Popular
                   </div>
                 )}
+                {/* Favorite Button */}
+                <button
+                  onClick={() => toggleFavorite(item.id)}
+                  className="absolute top-4 right-4 p-2 bg-white/90 rounded-full hover:bg-white transition-all duration-200 transform hover:scale-110"
+                >
+                  <Heart
+                    className={`h-5 w-5 transition-colors duration-200 ${
+                      isFavorite(item.id)
+                        ? "text-red-500 fill-current"
+                        : "text-gray-400"
+                    }`}
+                  />
+                </button>
               </div>
 
               <div className="p-6">
@@ -45,20 +151,35 @@ const MenuPreview = () => {
                   </span>
                 </div>
 
-                <p className="text-gray-600 mb-4 line-clamp-2">
+                <p className="text-gray-600 mb-4 leading-relaxed">
                   {item.description}
                 </p>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                  <div className="flex items-center space-x-1">
+                    <Clock className="h-4 w-4" />
+                    <span>{item.prepTime || "15-25 min"}</span>
+                  </div>
+                  <span>Serves: {item.serves || "1-2 People"}</span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-4">
                   {item.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs"
+                      className="px-3 py-1 bg-primary text-white rounded-full text-xs font-semibold"
                     >
                       {tag}
                     </span>
                   ))}
                 </div>
+
+                <button
+                  onClick={() => handleAddToOrder(item)}
+                  className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                >
+                  Add to Order
+                </button>
               </div>
             </div>
           ))}

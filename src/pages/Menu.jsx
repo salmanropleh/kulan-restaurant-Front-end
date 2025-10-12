@@ -17,6 +17,11 @@ const Menu = () => {
     }
   }, []);
 
+  // Save favorites to localStorage whenever favorites change
+  useEffect(() => {
+    localStorage.setItem("kulanFavorites", JSON.stringify(favorites));
+  }, [favorites]);
+
   const toggleFavorite = (itemId) => {
     let newFavorites;
     const isCurrentlyFavorite = favorites.includes(itemId);
@@ -32,8 +37,50 @@ const Menu = () => {
     }
 
     setFavorites(newFavorites);
-    localStorage.setItem("kulanFavorites", JSON.stringify(newFavorites));
     setShowSuccess(true);
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
+  };
+
+  const handleAddToOrder = (item) => {
+    // Get current cart from localStorage or initialize empty array
+    const currentCart = JSON.parse(localStorage.getItem("kulanCart") || "[]");
+
+    // Check if item already exists in cart
+    const existingItemIndex = currentCart.findIndex(
+      (cartItem) => cartItem.id === item.id
+    );
+
+    if (existingItemIndex > -1) {
+      // If item exists, increase quantity
+      currentCart[existingItemIndex].quantity += 1;
+    } else {
+      // If item doesn't exist, add new item
+      currentCart.push({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        image: item.image,
+        description: item.description,
+        quantity: 1,
+        category: activeCategory,
+      });
+    }
+
+    // Save updated cart to localStorage
+    localStorage.setItem("kulanCart", JSON.stringify(currentCart));
+
+    // Show success message
+    setSuccessMessage(`🎉 ${item.name} added to cart!`);
+    setShowSuccess(true);
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
   };
 
   const isFavorite = (itemId) => {
@@ -61,21 +108,23 @@ const Menu = () => {
           </p>
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex overflow-x-auto pb-4 mb-8 gap-2">
-          {menuCategories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => setActiveCategory(category.id)}
-              className={`flex-shrink-0 px-6 py-3 rounded-full font-semibold transition-colors ${
-                activeCategory === category.id
-                  ? "bg-primary text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {category.name}
-            </button>
-          ))}
+        {/* Category Tabs - CENTERED */}
+        <div className="flex justify-center overflow-x-auto pb-4 mb-8">
+          <div className="flex gap-2">
+            {menuCategories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setActiveCategory(category.id)}
+                className={`flex-shrink-0 px-6 py-3 rounded-full font-semibold transition-colors ${
+                  activeCategory === category.id
+                    ? "bg-primary text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Category Description */}
@@ -92,27 +141,27 @@ const Menu = () => {
         </div>
 
         {/* Menu Items Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {menuItems[activeCategory]?.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group"
+              className="group bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-transparent hover:border-primary"
             >
               {/* Image with Favorite Button */}
-              <div className="relative overflow-hidden h-48">
+              <div className="relative overflow-hidden h-64">
                 <img
                   src={item.image}
                   alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                 />
 
                 {/* Favorite Button */}
                 <button
                   onClick={() => toggleFavorite(item.id)}
-                  className="absolute top-3 right-3 p-2 bg-white/90 rounded-full hover:bg-white transition-all duration-200 transform hover:scale-110"
+                  className="absolute top-4 right-4 p-2 bg-white/90 rounded-full hover:bg-white transition-all duration-200 transform hover:scale-110"
                 >
                   <Heart
-                    className={`h-5 w-5 ${
+                    className={`h-5 w-5 transition-colors duration-200 ${
                       isFavorite(item.id)
                         ? "text-red-500 fill-current"
                         : "text-gray-400"
@@ -121,7 +170,7 @@ const Menu = () => {
                 </button>
 
                 {item.popular && (
-                  <div className="absolute top-3 left-3 bg-secondary text-white px-3 py-1 rounded-full text-sm font-semibold">
+                  <div className="absolute top-4 left-4 bg-secondary text-white px-3 py-1 rounded-full text-sm font-semibold">
                     Popular
                   </div>
                 )}
@@ -142,17 +191,32 @@ const Menu = () => {
                   {item.description}
                 </p>
 
+                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                  <div className="flex items-center space-x-1">
+                    <Clock className="h-4 w-4" />
+                    <span>{item.prepTime || "15-25 min"}</span>
+                  </div>
+                  <span>Serves: {item.serves || "1-2 People"}</span>
+                </div>
+
                 {/* Tags */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 mb-4">
                   {item.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium"
+                      className="px-3 py-1 bg-primary text-white rounded-full text-xs font-semibold"
                     >
                       {tag}
                     </span>
                   ))}
                 </div>
+
+                <button
+                  onClick={() => handleAddToOrder(item)}
+                  className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                >
+                  Add to Order
+                </button>
               </div>
             </div>
           ))}

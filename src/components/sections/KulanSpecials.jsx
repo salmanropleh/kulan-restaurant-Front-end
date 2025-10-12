@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Star, Award, Clock, Heart } from "lucide-react";
 import { menuItems } from "../../data/menuData";
 import Toast from "../ui/Toast";
@@ -8,6 +8,7 @@ const KulanSpecials = () => {
   const [favorites, setFavorites] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const navigate = useNavigate();
 
   // Load favorites from localStorage on component mount
   useEffect(() => {
@@ -37,6 +38,44 @@ const KulanSpecials = () => {
     }
 
     setFavorites(newFavorites);
+    setShowSuccess(true);
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
+  };
+
+  const handleAddToOrder = (special) => {
+    // Get current cart from localStorage or initialize empty array
+    const currentCart = JSON.parse(localStorage.getItem("kulanCart") || "[]");
+
+    // Check if item already exists in cart
+    const existingItemIndex = currentCart.findIndex(
+      (item) => item.id === special.id
+    );
+
+    if (existingItemIndex > -1) {
+      // If item exists, increase quantity
+      currentCart[existingItemIndex].quantity += 1;
+    } else {
+      // If item doesn't exist, add new item
+      currentCart.push({
+        id: special.id,
+        name: special.name,
+        price: special.price,
+        image: special.image,
+        description: special.description,
+        quantity: 1,
+        category: "specialties",
+      });
+    }
+
+    // Save updated cart to localStorage
+    localStorage.setItem("kulanCart", JSON.stringify(currentCart));
+
+    // Show success message
+    setSuccessMessage(`🎉 ${special.name} added to cart!`);
     setShowSuccess(true);
 
     // Auto-hide after 3 seconds
@@ -140,7 +179,10 @@ const KulanSpecials = () => {
                   ))}
                 </div>
 
-                <button className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200">
+                <button
+                  onClick={() => handleAddToOrder(special)}
+                  className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                >
                   Add to Order
                 </button>
               </div>
