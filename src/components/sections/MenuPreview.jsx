@@ -88,6 +88,11 @@ const MenuPreview = () => {
     return favorites.includes(itemId);
   };
 
+  // ADD THIS FUNCTION FOR NAVIGATION
+  const navigateToDetails = (itemId) => {
+    navigate(`/food/${itemId}`);
+  };
+
   return (
     <section className="py-20 bg-white">
       {/* Toast Component */}
@@ -174,12 +179,21 @@ const MenuPreview = () => {
                   ))}
                 </div>
 
-                <button
-                  onClick={() => handleAddToOrder(item)}
-                  className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
-                >
-                  Add to Order
-                </button>
+                {/* REPLACE SINGLE BUTTON WITH DUAL BUTTONS */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => navigateToDetails(item.id)}
+                    className="flex-1 bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                  >
+                    View Details
+                  </button>
+                  {/* <button
+                    onClick={() => handleAddToOrder(item)}
+                    className="flex-1 bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                  >
+                    Order Now
+                  </button> */}
+                </div>
               </div>
             </div>
           ))}

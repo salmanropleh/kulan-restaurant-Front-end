@@ -88,6 +88,11 @@ const KulanSpecials = () => {
     return favorites.includes(specialId);
   };
 
+  // ADD THIS FUNCTION FOR NAVIGATION
+  const navigateToDetails = (itemId) => {
+    navigate(`/food/${itemId}`);
+  };
+
   // Use specials from menuData instead of hardcoded array
   const specialties = menuItems.specials;
 
@@ -179,12 +184,21 @@ const KulanSpecials = () => {
                   ))}
                 </div>
 
-                <button
-                  onClick={() => handleAddToOrder(special)}
-                  className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
-                >
-                  Add to Order
-                </button>
+                {/* REPLACE SINGLE BUTTON WITH DUAL BUTTONS */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => navigateToDetails(special.id)}
+                    className="flex-1 bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                  >
+                    View Details
+                  </button>
+                  {/* <button
+                    onClick={() => handleAddToOrder(special)}
+                    className="flex-1 bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                  >
+                    Order Now
+                  </button> */}
+                </div>
               </div>
             </div>
           ))}

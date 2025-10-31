@@ -1,5 +1,6 @@
+// components/ui/Toast.jsx
 import React, { useEffect } from "react";
-import { CheckCircle, X } from "lucide-react";
+import { CheckCircle, XCircle, X } from "lucide-react";
 
 const Toast = ({ message, isVisible, onClose, type = "success" }) => {
   useEffect(() => {
@@ -15,13 +16,14 @@ const Toast = ({ message, isVisible, onClose, type = "success" }) => {
   if (!isVisible) return null;
 
   const bgColor = type === "success" ? "bg-green-500" : "bg-red-500";
+  const Icon = type === "success" ? CheckCircle : XCircle;
 
   return (
     <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
       <div
         className={`${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 max-w-sm`}
       >
-        <CheckCircle className="h-5 w-5 flex-shrink-0" />
+        <Icon className="h-5 w-5 flex-shrink-0" />
         <span className="flex-1">{message}</span>
         <button
           onClick={onClose}

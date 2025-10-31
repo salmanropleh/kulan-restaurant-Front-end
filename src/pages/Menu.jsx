@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // ADD THIS IMPORT
 import { menuCategories, menuItems } from "../data/menuData";
 import { Star, Clock, Heart } from "lucide-react";
 import Toast from "../components/ui/Toast";
@@ -8,6 +9,7 @@ const Menu = () => {
   const [favorites, setFavorites] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const navigate = useNavigate(); // ADD THIS HOOK
 
   // Load favorites from localStorage on component mount
   useEffect(() => {
@@ -85,6 +87,11 @@ const Menu = () => {
 
   const isFavorite = (itemId) => {
     return favorites.includes(itemId);
+  };
+
+  // ADD THIS FUNCTION FOR NAVIGATION
+  const navigateToDetails = (itemId) => {
+    navigate(`/food/${itemId}`);
   };
 
   return (
@@ -211,12 +218,21 @@ const Menu = () => {
                   ))}
                 </div>
 
-                <button
-                  onClick={() => handleAddToOrder(item)}
-                  className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
-                >
-                  Add to Order
-                </button>
+                {/* REPLACE THE SINGLE BUTTON WITH DUAL BUTTONS */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => navigateToDetails(item.id)}
+                    className="flex-1 bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                  >
+                    View Details
+                  </button>
+                  {/* <button
+                    onClick={() => handleAddToOrder(item)}
+                    className="flex-1 bg-primary text-white py-3 rounded-lg font-semibold hover:bg-accent transition-colors duration-200"
+                  >
+                    Order Now
+                  </button> */}
+                </div>
               </div>
             </div>
           ))}
