@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Utensils, Sprout, Star } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import Toast from "../components/ui/Toast";
+import { useAuth } from "../../context/AuthContext";
+import Toast from "../../components/ui/Toast/Toast";
 
 const Login = () => {
   const [email, setEmail] = useState("");

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
-import Toast from "../components/ui/Toast";
+import Toast from "../../components/ui/Toast/Toast";
 
 const CartPage = () => {
   const [cart, setCart] = useState(() => {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Star, Award, Clock, Heart } from "lucide-react";
-import { menuItems } from "../../data/menuData";
-import Toast from "../ui/Toast";
+import { menuItems } from "../../../data/menuData";
+import Toast from "../../ui/Toast/Toast";
 
 const KulanSpecials = () => {
   const [favorites, setFavorites] = useState([]);

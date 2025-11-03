@@ -1,6 +1,6 @@
 // Front-End/src/pages/ProfilePage.jsx
 import React, { useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom"; // Add this import
 import { User, Mail, Phone, Calendar, Shield, Bell } from "lucide-react";
 

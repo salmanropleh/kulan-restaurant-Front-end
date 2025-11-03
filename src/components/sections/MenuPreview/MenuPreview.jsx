@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Clock, Heart } from "lucide-react";
-import { featuredItems } from "../../data/menuData";
-import Toast from "../ui/Toast";
+import { featuredItems } from "../../../data/menuData";
+import Toast from "../../ui/Toast/Toast";
 
 const MenuPreview = () => {
   const [favorites, setFavorites] = useState([]);

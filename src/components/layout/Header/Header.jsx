@@ -9,8 +9,8 @@ import {
   ChevronDown,
   ShoppingCart,
 } from "lucide-react"; // Added ShoppingCart
-import { useAuth } from "../../context/AuthContext";
-import UserProfile from "../UserProfile";
+import { useAuth } from "../../../context/AuthContext";
+import UserProfile from "../../ui/UserProfile/UserProfile";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -18,11 +18,12 @@ const Header = () => {
   const location = useLocation();
   const { user } = useAuth();
 
+  // Navigation order: HOME → MENU (dropdown) → GALLERY → CONTACT → ABOUT
   const navigation = [
     { name: "Home", href: "/" },
-    { name: "About", href: "/about" },
     { name: "Gallery", href: "/gallery" },
     { name: "Contact", href: "/contact" },
+    { name: "About", href: "/about" },
   ];
 
   const menuDropdownItems = [
@@ -66,21 +67,19 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-4 xl:space-x-6 mx-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`font-medium transition-colors duration-200 whitespace-nowrap text-sm xl:text-base px-2 py-1 ${
-                  isActive(item.href)
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-gray-600 hover:text-primary hover:bg-gray-50 rounded"
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
+            {/* Home Link */}
+            <Link
+              to="/"
+              className={`font-medium transition-colors duration-200 whitespace-nowrap text-sm xl:text-base px-2 py-1 ${
+                isActive("/")
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-gray-600 hover:text-primary hover:bg-gray-50 rounded"
+              }`}
+            >
+              Home
+            </Link>
 
-            {/* Menu Dropdown */}
+            {/* Menu Dropdown - Second position */}
             <div className="relative">
               <div
                 className="flex items-center"
@@ -132,6 +131,21 @@ const Header = () => {
                 )}
               </div>
             </div>
+
+            {/* Rest of navigation items */}
+            {navigation.slice(1).map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={`font-medium transition-colors duration-200 whitespace-nowrap text-sm xl:text-base px-2 py-1 ${
+                  isActive(item.href)
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-gray-600 hover:text-primary hover:bg-gray-50 rounded"
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
           </div>
 
           {/* CTA Buttons */}
@@ -177,20 +191,18 @@ const Header = () => {
         {isMenuOpen && (
           <div className="lg:hidden py-3 border-t border-gray-200 bg-white">
             <div className="flex flex-col space-y-1">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`font-medium py-2 px-3 rounded-lg text-base transition-colors ${
-                    isActive(item.href)
-                      ? "text-primary bg-primary/10"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {item.name}
-                </Link>
-              ))}
+              {/* Home Link */}
+              <Link
+                to="/"
+                className={`font-medium py-2 px-3 rounded-lg text-base transition-colors ${
+                  isActive("/")
+                    ? "text-primary bg-primary/10"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Home
+              </Link>
 
               {/* Mobile Menu Dropdown Items */}
               <div className="border-t border-gray-200 pt-2 mt-2">
@@ -212,6 +224,22 @@ const Header = () => {
                   </Link>
                 ))}
               </div>
+
+              {/* Rest of navigation items */}
+              {navigation.slice(1).map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`font-medium py-2 px-3 rounded-lg text-base transition-colors ${
+                    isActive(item.href)
+                      ? "text-primary bg-primary/10"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              ))}
 
               {/* Mobile CTA Buttons */}
               <div className="flex flex-col gap-2 pt-3 mt-2 border-t border-gray-200">

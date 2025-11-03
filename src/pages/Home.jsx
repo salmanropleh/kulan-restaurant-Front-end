@@ -1,9 +1,9 @@
 import React from "react";
-import Hero from "../components/sections/Hero";
-import MenuPreview from "../components/sections/MenuPreview";
-import About from "../components/sections/About";
-import Testimonials from "../components/sections/Testimonials";
-import KulanSpecials from "../components/sections/KulanSpecials"; // Add this import
+import Hero from "../components/sections/Hero/Hero";
+import MenuPreview from "../components/sections/MenuPreview/MenuPreview";
+import About from "../components/sections/About/About";
+import Testimonials from "../components/sections/Testimonials/Testimonials";
+import KulanSpecials from "../components/sections/KulanSpecials/KulanSpecials"; // Add this import
 
 const Home = () => {
   return (

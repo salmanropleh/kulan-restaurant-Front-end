@@ -10,10 +10,9 @@ import {
   Clock,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // Add this import
+import { useAuth } from "../../context/AuthContext"; // Add this import
 
 const CheckoutPage = () => {
-  const { user } = useAuth(); // Add this to get user data
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -32,27 +31,25 @@ const CheckoutPage = () => {
 
   const navigate = useNavigate();
   const cart = JSON.parse(localStorage.getItem("kulanCart") || "[]");
+  const { user } = useAuth(); // Get user from auth context
 
   // Fixed fees
   const DELIVERY_FEE = 2.99;
   const TAX_RATE = 0.08; // 8%
 
-  // Prefill user data when component mounts or user changes
+  // Auto-fill form from auth context user data
   useEffect(() => {
     if (user) {
-      setFormData((prevData) => ({
-        ...prevData,
+      setFormData((prev) => ({
+        ...prev,
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         email: user.email || "",
         phone: user.phone || "",
-        // You can add address fields if you have them in user data
-        // address: user.address || "",
-        // city: user.city || "",
-        // zipCode: user.zipCode || "",
+        // Address fields remain empty as they're not in user profile
       }));
     }
-  }, [user]);
+  }, [user]); // Add user as dependency
 
   const getTotalPrice = () =>
     cart.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -74,8 +71,83 @@ const CheckoutPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Handle order submission
-    console.log("Order submitted:", formData);
+
+    // Basic form validation
+    if (
+      !formData.firstName ||
+      !formData.lastName ||
+      !formData.email ||
+      !formData.phone
+    ) {
+      alert("Please fill in all required contact information");
+      return;
+    }
+
+    if (
+      formData.deliveryType === "delivery" &&
+      (!formData.address || !formData.city || !formData.zipCode)
+    ) {
+      alert("Please fill in all required address fields for delivery");
+      return;
+    }
+
+    if (
+      formData.paymentMethod === "card" &&
+      (!formData.cardNumber || !formData.expiryDate || !formData.cvv)
+    ) {
+      alert("Please fill in all required payment information");
+      return;
+    }
+
+    // Create order object
+    const order = {
+      id: Date.now().toString(),
+      customer: {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        address:
+          formData.deliveryType === "delivery"
+            ? {
+                street: formData.address,
+                city: formData.city,
+                zipCode: formData.zipCode,
+              }
+            : null,
+      },
+      items: cart,
+      deliveryType: formData.deliveryType,
+      paymentMethod: formData.paymentMethod,
+      specialInstructions: formData.specialInstructions,
+      subtotal: getTotalPrice(),
+      deliveryFee: getDeliveryFee(),
+      tax: getTaxAmount(),
+      total: getGrandTotal(),
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    // Save order to localStorage (or send to your backend)
+    const existingOrders = JSON.parse(
+      localStorage.getItem("kulanOrders") || "[]"
+    );
+    const updatedOrders = [...existingOrders, order];
+    localStorage.setItem("kulanOrders", JSON.stringify(updatedOrders));
+
+    // Clear the cart
+    localStorage.removeItem("kulanCart");
+
+    // Show success message and redirect
+    alert(`🎉 Order placed successfully! Order #${order.id}`);
+
+    // Redirect to order confirmation or home page
+    navigate("/order-confirmation", {
+      state: {
+        orderId: order.id,
+        orderTotal: order.total,
+      },
+    });
   };
 
   const handleInputChange = (e) => {
@@ -92,7 +164,7 @@ const CheckoutPage = () => {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <Link
-              to="/order-online"
+              to="/cart"
               className="flex items-center bg-secondary text-white px-6 py-3 rounded-full font-semibold hover:bg-orange-600 transition-colors duration-200"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
@@ -105,11 +177,6 @@ const CheckoutPage = () => {
               <span className="text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium">
                 {getTotalItems()} {getTotalItems() === 1 ? "item" : "items"}
               </span>
-              {user && (
-                <span className="text-green-600 bg-green-100 px-3 py-1 rounded-full text-sm font-medium">
-                  Logged in as {user.firstName}
-                </span>
-              )}
             </div>
           </div>
 
@@ -165,11 +232,6 @@ const CheckoutPage = () => {
                 <div className="flex items-center space-x-3 mb-6">
                   <User className="h-6 w-6 text-primary" />
                   <h2 className="text-xl font-bold">Contact Information</h2>
-                  {user && (
-                    <span className="text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                      Prefilled from your account
-                    </span>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Heart, ArrowLeft, ShoppingCart } from "lucide-react";
-import { menuItems } from "../data/menuData";
-import Toast from "../components/ui/Toast";
+import { menuItems } from "../../data/menuData";
+import Toast from "../../components/ui/Toast/Toast";
 
 // Define specialties here to match the KulanSpecials component
 const specialties = [

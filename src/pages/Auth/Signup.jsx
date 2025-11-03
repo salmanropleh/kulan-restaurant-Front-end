@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Utensils, Phone, User, Mail } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import Toast from "../components/ui/Toast";
+import { useAuth } from "../../context/AuthContext";
+import Toast from "../../components/ui/Toast/Toast";
 
 const Signup = () => {
   const [formData, setFormData] = useState({

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Heart, Clock, Users, Star, ArrowLeft } from "lucide-react";
-import { menuItems } from "../data/menuData";
-import Toast from "../components/ui/Toast";
+import { menuItems } from "../../data/menuData";
+import Toast from "../../components/ui/Toast/Toast";
 
 const FoodDetails = () => {
   const { id } = useParams();

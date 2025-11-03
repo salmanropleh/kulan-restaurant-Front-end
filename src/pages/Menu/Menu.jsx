@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; // ADD THIS IMPORT
-import { menuCategories, menuItems } from "../data/menuData";
+import { menuCategories, menuItems } from "../../data/menuData";
 import { Star, Clock, Heart } from "lucide-react";
-import Toast from "../components/ui/Toast";
+import Toast from "../../components/ui/Toast/Toast";
 
 const Menu = () => {
   const [activeCategory, setActiveCategory] = useState("breakfast");
