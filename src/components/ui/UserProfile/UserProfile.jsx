@@ -1,7 +1,7 @@
 // Front-End/src/components/UserProfile.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { User, LogOut, Settings } from "lucide-react";
+import { User, LogOut, Settings, LayoutDashboard } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 
 const UserProfile = () => {
@@ -48,6 +48,16 @@ const UserProfile = () => {
             <p className="text-sm font-medium text-gray-900">{user.name}</p>
             <p className="text-xs text-gray-500 truncate">{user.email}</p>
           </div>
+
+          {/* Dashboard Link - Added here */}
+          <Link
+            to="/admin"
+            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            onClick={() => setIsOpen(false)}
+          >
+            <LayoutDashboard className="h-4 w-4 mr-2" />
+            Dashboard
+          </Link>
 
           <Link
             to="/profile"
