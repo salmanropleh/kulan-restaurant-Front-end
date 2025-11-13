@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Plus,
   Eye,
   Edit,
   Trash2,
@@ -8,74 +7,84 @@ import {
   User,
   Phone,
   Clock,
+  RefreshCw,
+  Loader,
+  AlertCircle,
 } from "lucide-react";
+import { contactAPI } from "../../services/contactAPI";
 
 const Messages = () => {
   const [messages, setMessages] = useState([]);
   const [filteredMessages, setFilteredMessages] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data - replace with actual API call
+  // Helper function to safely extract messages from API response
+  const extractMessagesFromResponse = (data) => {
+    if (!data) return [];
+
+    // Handle different response formats
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data.results && Array.isArray(data.results)) {
+      return data.results;
+    } else if (data.data && Array.isArray(data.data)) {
+      return data.data;
+    } else if (typeof data === "object") {
+      return [data];
+    }
+
+    return [];
+  };
+
+  // Fetch messages from API
+  const fetchMessages = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await contactAPI.getMessages();
+
+      // Safely extract messages from response
+      const messagesList = extractMessagesFromResponse(response);
+
+      setMessages(messagesList);
+      setFilteredMessages(messagesList);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      setError("Failed to load contact messages. Please try again.");
+      setMessages([]);
+      setFilteredMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch messages on component mount
   useEffect(() => {
-    const mockMessages = [
-      {
-        id: 1,
-        name: "John Smith",
-        email: "john.smith@example.com",
-        phone: "+1234567890",
-        subject: "Reservation Inquiry",
-        message:
-          "Hello, I would like to make a reservation for 4 people this Friday evening. Do you have any availability around 7 PM?",
-        is_read: false,
-        created_at: "2024-01-15T14:30:00Z",
-      },
-      {
-        id: 2,
-        name: "Sarah Johnson",
-        email: "sarah.j@example.com",
-        phone: "+0987654321",
-        subject: "Special Dietary Requirements",
-        message:
-          "I have some food allergies and would like to know if you can accommodate gluten-free and dairy-free options for your menu.",
-        is_read: true,
-        created_at: "2024-01-15T10:15:00Z",
-      },
-      {
-        id: 3,
-        name: "Mike Davis",
-        email: "mike.davis@example.com",
-        phone: "+1122334455",
-        subject: "Private Event Booking",
-        message:
-          "We're interested in booking your restaurant for a private corporate event for about 30 people next month. Could you please share your group dining options and pricing?",
-        is_read: false,
-        created_at: "2024-01-14T16:45:00Z",
-      },
-      {
-        id: 4,
-        name: "Emily Wilson",
-        email: "emily.w@example.com",
-        phone: null,
-        subject: "Compliment",
-        message:
-          "Just wanted to say we had an amazing experience at your restaurant last night! The food was exceptional and the service was outstanding. We'll definitely be back!",
-        is_read: true,
-        created_at: "2024-01-14T09:20:00Z",
-      },
-    ];
-    setMessages(mockMessages);
-    setFilteredMessages(mockMessages);
+    fetchMessages();
   }, []);
 
-  // Filter messages
+  // Filter messages - with additional safety checks
   useEffect(() => {
+    if (!Array.isArray(messages)) {
+      setFilteredMessages([]);
+      return;
+    }
+
     let filtered = messages.filter((message) => {
+      if (!message || typeof message !== "object") return false;
+
       const matchesSearch =
-        message.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        message.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        message.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (message.name &&
+          message.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (message.email &&
+          message.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (message.subject &&
+          message.subject.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (message.message &&
+          message.message.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (message.phone && message.phone.includes(searchTerm));
 
       const matchesStatus =
@@ -87,6 +96,35 @@ const Messages = () => {
     });
     setFilteredMessages(filtered);
   }, [searchTerm, statusFilter, messages]);
+
+  // Handle message actions
+  const handleViewMessage = (message) => {
+    alert(
+      `Viewing message from ${message.name}\n\nSubject: ${message.subject}\nMessage: ${message.message}`
+    );
+  };
+
+  const handleEditMessage = (message) => {
+    alert(`Edit functionality for message #${message.id} would open here`);
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this message? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await contactAPI.deleteMessage(messageId);
+      await fetchMessages();
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      alert("Error deleting message. Please try again.");
+    }
+  };
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -103,13 +141,78 @@ const Messages = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      return "Invalid date";
+    }
   };
+
+  // Safe value getters for message properties
+  const getMessageName = (message) => {
+    return message?.name || "Unknown";
+  };
+
+  const getMessageEmail = (message) => {
+    return message?.email || "";
+  };
+
+  const getMessagePhone = (message) => {
+    return message?.phone || "";
+  };
+
+  const getMessageSubject = (message) => {
+    return message?.subject || "other";
+  };
+
+  const getMessageContent = (message) => {
+    return message?.message || "";
+  };
+
+  const getMessageStatus = (message) => {
+    return message?.is_read || false;
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div className="flex items-center justify-center">
+            <Loader className="w-8 h-8 text-green-600 animate-spin mr-3" />
+            <span className="text-gray-600">Loading messages...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={fetchMessages}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 text-sm mx-auto"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Try Again</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -119,21 +222,27 @@ const Messages = () => {
           Contact Messages Management
         </h1>
         <p className="text-xs sm:text-sm text-gray-600 mt-1">
-          Manage customer inquiries and messages
+          Manage customer inquiries and messages (
+          {Array.isArray(messages) ? messages.length : 0} total)
         </p>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        {/* Header with Add Button */}
+        {/* Header with Refresh Button */}
         <div className="p-3 sm:p-4 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 className="text-lg font-semibold text-gray-900">
               All Contact Messages
             </h2>
-            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 text-sm shadow-sm hover:shadow transition-colors duration-200">
-              <Plus className="w-4 h-4" />
-              <span>Add New Message</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={fetchMessages}
+                className="border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -169,7 +278,7 @@ const Messages = () => {
 
         {/* Contact Messages Table */}
         <div className="p-2 sm:p-3 md:p-4">
-          {filteredMessages.length > 0 ? (
+          {Array.isArray(filteredMessages) && filteredMessages.length > 0 ? (
             <div className="contact-messages-table overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50 hidden sm:table-header-group">
@@ -203,7 +312,7 @@ const Messages = () => {
                     <tr
                       key={message.id}
                       className={`hover:bg-gray-50 transition-colors duration-150 sm:table-row block border-b sm:border-none p-3 sm:p-0 ${
-                        !message.is_read ? "bg-blue-50" : ""
+                        !getMessageStatus(message) ? "bg-blue-50" : ""
                       }`}
                     >
                       {/* ID */}
@@ -221,16 +330,16 @@ const Messages = () => {
                         </div>
                         <div className="font-medium text-gray-600 break-words flex items-center gap-1">
                           <User className="w-3 h-3" />
-                          {message.name}
+                          {getMessageName(message)}
                         </div>
                         <div className="text-gray-500 text-sm break-words mt-1 flex items-center gap-1">
                           <Mail className="w-3 h-3" />
-                          {message.email}
+                          {getMessageEmail(message)}
                         </div>
-                        {message.phone && (
+                        {getMessagePhone(message) && (
                           <div className="text-gray-500 text-xs break-words mt-1 flex items-center gap-1">
                             <Phone className="w-3 h-3" />
-                            {message.phone}
+                            {getMessagePhone(message)}
                           </div>
                         )}
                       </td>
@@ -240,8 +349,9 @@ const Messages = () => {
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           Subject
                         </div>
-                        <div className="font-medium text-gray-600 break-words">
-                          {message.subject}
+                        <div className="font-medium text-gray-600 break-words capitalize">
+                          {getMessageSubject(message)?.replace("_", " ") ||
+                            "Other"}
                         </div>
                       </td>
 
@@ -251,9 +361,12 @@ const Messages = () => {
                           Message
                         </div>
                         <div className="break-words line-clamp-2 text-sm">
-                          {message.message.length > 100
-                            ? `${message.message.substring(0, 100)}...`
-                            : message.message}
+                          {getMessageContent(message).length > 100
+                            ? `${getMessageContent(message).substring(
+                                0,
+                                100
+                              )}...`
+                            : getMessageContent(message)}
                         </div>
                       </td>
 
@@ -262,8 +375,10 @@ const Messages = () => {
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           Status
                         </div>
-                        <span className={getStatusBadge(message.is_read)}>
-                          {message.is_read ? "Read" : "Unread"}
+                        <span
+                          className={getStatusBadge(getMessageStatus(message))}
+                        >
+                          {getMessageStatus(message) ? "Read" : "Unread"}
                         </span>
                       </td>
 
@@ -283,14 +398,28 @@ const Messages = () => {
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           Actions
                         </div>
-                        <div className="flex space-x-3">
-                          <button className="text-blue-600 hover:text-blue-800 transition-colors duration-200">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleViewMessage(message)}
+                            className="text-blue-600 hover:text-blue-800 transition-colors duration-200 p-1 rounded hover:bg-blue-50"
+                            title="View Message"
+                          >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="text-green-600 hover:text-green-800 transition-colors duration-200">
+
+                          <button
+                            onClick={() => handleEditMessage(message)}
+                            className="text-green-600 hover:text-green-800 transition-colors duration-200 p-1 rounded hover:bg-green-50"
+                            title="Edit Message"
+                          >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button className="text-red-600 hover:text-red-800 transition-colors duration-200">
+
+                          <button
+                            onClick={() => handleDeleteMessage(message.id)}
+                            className="text-red-600 hover:text-red-800 transition-colors duration-200 p-1 rounded hover:bg-red-50"
+                            title="Delete Message"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -304,15 +433,27 @@ const Messages = () => {
             <div className="text-center py-8 sm:py-12">
               <Mail className="mx-auto w-12 h-12 text-gray-300 mb-3 sm:mb-4" />
               <p className="text-gray-500 text-sm sm:text-base mb-2">
-                No contact messages found.
+                {!Array.isArray(messages) || messages.length === 0
+                  ? "No contact messages found."
+                  : "No messages match your filters."}
               </p>
               <p className="text-gray-400 text-xs sm:text-sm mb-4">
-                Create your first message to get started.
+                {!Array.isArray(messages) || messages.length === 0
+                  ? "Customer messages will appear here when they contact you through the contact form."
+                  : "Try adjusting your search or filters."}
               </p>
-              <button className="inline-flex items-center text-green-600 hover:text-green-700 text-xs sm:text-sm font-medium transition-colors duration-200">
-                <Plus className="w-3 h-3 mr-2" />
-                Add your first message
-              </button>
+              {!Array.isArray(messages) || messages.length === 0 ? (
+                <p className="text-gray-500 text-sm">
+                  Check your contact form to ensure it's working properly.
+                </p>
+              ) : (
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center text-green-600 hover:text-green-700 text-xs sm:text-sm font-medium transition-colors duration-200"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           )}
         </div>

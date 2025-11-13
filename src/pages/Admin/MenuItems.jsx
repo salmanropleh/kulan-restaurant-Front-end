@@ -9,58 +9,30 @@ import {
   Utensils,
   Star,
   Image as ImageIcon,
+  Clock,
+  Users,
 } from "lucide-react";
+import { menuApi } from "../../services/menuApi";
+import Toast from "../../components/ui/Toast/Toast";
 
 const MenuItems = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
-  // Mock data - replace with actual API call
+  // Load menu items and categories
   useEffect(() => {
-    const mockMenuItems = [
-      {
-        id: 1,
-        name: "KULAN Signature Platter",
-        description:
-          "Sampler of our best dishes: Barils, Hllib Ari, Sambusa, and Kachumbari",
-        category: { name: "KULAN Specialties" },
-        price: 45.99,
-        is_available: true,
-        is_special: true,
-        prep_time: "40-50 min",
-        image: "/api/placeholder/40/40",
-      },
-      {
-        id: 2,
-        name: "Sanaki Wa Kupaka",
-        description: "Grilled fish in coconut curry sauce",
-        category: { name: "Dinner" },
-        price: 32.5,
-        is_available: true,
-        is_special: false,
-        prep_time: "25-35 min",
-        image: "/api/placeholder/40/40",
-      },
-      {
-        id: 3,
-        name: "Malawah Pancakes",
-        description: "Thin, sweet pancakes served with honey and ghee",
-        category: { name: "Breakfast" },
-        price: 12.99,
-        is_available: false,
-        is_special: true,
-        prep_time: "10-15 min",
-        image: null,
-      },
-    ];
-    setMenuItems(mockMenuItems);
-    setFilteredItems(mockMenuItems);
+    loadMenuItems();
+    loadCategories();
   }, []);
 
   // Filter items
@@ -70,23 +42,70 @@ const MenuItems = () => {
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.description &&
           item.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        item.category.name.toLowerCase().includes(searchTerm.toLowerCase());
+        (item.category &&
+          item.category.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesCategory =
-        !categoryFilter || item.category.name === categoryFilter;
+        !categoryFilter ||
+        (item.category && item.category.name === categoryFilter);
       const matchesStatus =
         !statusFilter ||
-        (statusFilter === "available" && item.is_available) ||
-        (statusFilter === "unavailable" && !item.is_available);
+        (statusFilter === "available" && item.is_available !== false) ||
+        (statusFilter === "unavailable" && item.is_available === false);
       const matchesTag =
         !tagFilter ||
-        (tagFilter === "special" && item.is_special) ||
-        (tagFilter === "regular" && !item.is_special);
+        (tagFilter === "special" && item.popular) ||
+        (tagFilter === "regular" && !item.popular);
 
       return matchesSearch && matchesCategory && matchesStatus && matchesTag;
     });
     setFilteredItems(filtered);
   }, [searchTerm, categoryFilter, statusFilter, tagFilter, menuItems]);
+
+  const loadMenuItems = async () => {
+    setLoading(true);
+    try {
+      // Get all categories first, then get items for each category
+      const categoriesData = await menuApi.getCategories();
+      let allItems = [];
+
+      // Fetch items for each category
+      for (const category of categoriesData) {
+        try {
+          const items = await menuApi.getItemsByCategory(category.id);
+          // Add category information to each item
+          const itemsWithCategory = items.map((item) => ({
+            ...item,
+            category: category,
+          }));
+          allItems = [...allItems, ...itemsWithCategory];
+        } catch (error) {
+          console.error(
+            `Error loading items for category ${category.name}:`,
+            error
+          );
+        }
+      }
+
+      setMenuItems(allItems);
+      setFilteredItems(allItems);
+    } catch (error) {
+      console.error("Error loading menu items:", error);
+      setToastMessage("Error loading menu items");
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const data = await menuApi.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+    }
+  };
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -105,8 +124,56 @@ const MenuItems = () => {
     setModalOpen(false);
   };
 
+  const handleDeleteItem = async (itemId, itemName) => {
+    if (window.confirm(`Are you sure you want to delete "${itemName}"?`)) {
+      try {
+        // In a real app, you would call menuApi.deleteItem(itemId)
+        // For now, we'll just show a success message
+        setMenuItems((prev) => prev.filter((item) => item.id !== itemId));
+        setToastMessage(`"${itemName}" has been deleted`);
+        setShowToast(true);
+      } catch (error) {
+        console.error("Error deleting item:", error);
+        setToastMessage("Error deleting item");
+        setShowToast(true);
+      }
+    }
+  };
+
+  const handleToggleAvailability = async (itemId, currentStatus, itemName) => {
+    try {
+      // In a real app, you would call menuApi.updateItem(itemId, { is_available: !currentStatus })
+      setMenuItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, is_available: !currentStatus } : item
+        )
+      );
+      setToastMessage(
+        `"${itemName}" is now ${!currentStatus ? "available" : "unavailable"}`
+      );
+      setShowToast(true);
+    } catch (error) {
+      console.error("Error updating item:", error);
+      setToastMessage("Error updating item");
+      setShowToast(true);
+    }
+  };
+
+  const getCategoryNames = () => {
+    return [
+      ...new Set(menuItems.map((item) => item.category?.name).filter(Boolean)),
+    ];
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <Toast
+        message={toastMessage}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        type="success"
+      />
+
       {/* Header */}
       <div className="mb-4 sm:mb-6">
         <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
@@ -120,7 +187,6 @@ const MenuItems = () => {
       {/* Header with Add Button and Item Count */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
         <div className="flex-1">
-          {/* Item Count */}
           <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
             {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}{" "}
             found
@@ -128,7 +194,6 @@ const MenuItems = () => {
         </div>
 
         <div className="flex items-center gap-4 mt-4 sm:mt-0">
-          {/* Add New Menu Item Button */}
           <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 text-sm shadow-sm hover:shadow transition-colors duration-200">
             <Plus className="w-4 h-4" />
             <span>Add New Menu Item</span>
@@ -160,10 +225,11 @@ const MenuItems = () => {
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none"
             >
               <option value="">All Categories</option>
-              <option value="Breakfast">Breakfast</option>
-              <option value="Lunch">Lunch</option>
-              <option value="Dinner">Dinner</option>
-              <option value="KULAN Specialties">KULAN Specialties</option>
+              {getCategoryNames().map((categoryName) => (
+                <option key={categoryName} value={categoryName}>
+                  {categoryName}
+                </option>
+              ))}
             </select>
 
             {/* Status Filter */}
@@ -209,7 +275,14 @@ const MenuItems = () => {
         </div>
 
         <div className="p-2 sm:p-3 md:p-4">
-          {filteredItems.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-8 sm:py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+              <p className="text-gray-500 text-sm sm:text-base mt-4">
+                Loading menu items...
+              </p>
+            </div>
+          ) : filteredItems.length > 0 ? (
             <div className="items-table overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50 hidden sm:table-header-group">
@@ -308,7 +381,7 @@ const MenuItems = () => {
                           Category
                         </div>
                         <div className="break-words text-sm category-name">
-                          {item.category.name}
+                          {item.category?.name || "Uncategorized"}
                         </div>
                       </td>
 
@@ -318,7 +391,7 @@ const MenuItems = () => {
                           Price
                         </div>
                         <span className="font-medium text-gray-900">
-                          ${item.price}
+                          ${parseFloat(item.price).toFixed(2)}
                         </span>
                       </td>
 
@@ -327,20 +400,31 @@ const MenuItems = () => {
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           Status
                         </div>
-                        <span
-                          className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border ${
-                            item.is_available
-                              ? "bg-green-100 text-green-800 border-green-200"
-                              : "bg-red-100 text-red-800 border-red-200"
+                        <button
+                          onClick={() =>
+                            handleToggleAvailability(
+                              item.id,
+                              item.is_available,
+                              item.name
+                            )
+                          }
+                          className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
+                            item.is_available !== false
+                              ? "bg-green-100 text-green-800 border-green-200 hover:bg-green-200"
+                              : "bg-red-100 text-red-800 border-red-200 hover:bg-red-200"
                           }`}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                              item.is_available ? "bg-green-500" : "bg-red-500"
+                              item.is_available !== false
+                                ? "bg-green-500"
+                                : "bg-red-500"
                             }`}
                           ></span>
-                          {item.is_available ? "Available" : "Unavailable"}
-                        </span>
+                          {item.is_available !== false
+                            ? "Available"
+                            : "Unavailable"}
+                        </button>
                       </td>
 
                       {/* Tag */}
@@ -348,7 +432,7 @@ const MenuItems = () => {
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           Tag
                         </div>
-                        {item.is_special ? (
+                        {item.popular ? (
                           <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
                             <Star className="text-yellow-600 w-3 h-3 mr-1" />
                             Special
@@ -365,7 +449,10 @@ const MenuItems = () => {
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           Prep Time
                         </div>
-                        {item.prep_time || "-"}
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-gray-400" />
+                          {item.prep_time || "-"}
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -374,13 +461,23 @@ const MenuItems = () => {
                           Actions
                         </div>
                         <div className="flex space-x-3">
-                          <button className="text-green-600 hover:text-green-800 transition-colors duration-200">
+                          <button
+                            className="text-green-600 hover:text-green-800 transition-colors duration-200"
+                            title="View Details"
+                          >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="text-blue-600 hover:text-blue-800 transition-colors duration-200">
+                          <button
+                            className="text-blue-600 hover:text-blue-800 transition-colors duration-200"
+                            title="Edit Item"
+                          >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button className="text-red-600 hover:text-red-800 transition-colors duration-200">
+                          <button
+                            onClick={() => handleDeleteItem(item.id, item.name)}
+                            className="text-red-600 hover:text-red-800 transition-colors duration-200"
+                            title="Delete Item"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -394,10 +491,14 @@ const MenuItems = () => {
             <div className="text-center py-8 sm:py-12">
               <Utensils className="mx-auto text-3xl sm:text-4xl text-gray-300 mb-3 sm:mb-4" />
               <p className="text-gray-500 text-sm sm:text-base mb-2">
-                No menu items found.
+                {searchTerm || categoryFilter || statusFilter || tagFilter
+                  ? "No menu items match your filters."
+                  : "No menu items found."}
               </p>
               <p className="text-gray-400 text-xs sm:text-sm mb-4">
-                Create your first menu item to get started.
+                {searchTerm || categoryFilter || statusFilter || tagFilter
+                  ? "Try adjusting your filters or search term."
+                  : "Create your first menu item to get started."}
               </p>
               <button className="inline-flex items-center text-green-600 hover:text-green-700 text-xs sm:text-sm font-medium transition-colors duration-200">
                 <Plus className="w-3 h-3 mr-2" />

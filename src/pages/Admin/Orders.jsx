@@ -15,7 +15,10 @@ import {
   Utensils,
   Hourglass,
   Ban,
+  RefreshCw,
 } from "lucide-react";
+import { orderManagementApi } from "../../services/orderManagementApi";
+import Toast from "../../components/ui/Toast/Toast";
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -23,85 +26,104 @@ const Orders = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [filteredOrders, setFilteredOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
-  // Mock data - replace with actual API call
-  useEffect(() => {
-    const mockOrders = [
-      {
-        id: 1,
-        customer_name: "John Doe",
-        customer_email: "john@example.com",
-        customer_phone: "+1234567890",
-        delivery_address: "123 Main St, City, State",
-        order_items_list: [
-          {
-            menu_item: {
-              name: "KULAN Signature Platter",
-              image: "/api/placeholder/32/32",
-            },
-            quantity: 1,
-            price: 45.99,
-          },
-          {
-            menu_item: {
-              name: "Sanaki Wa Kupaka",
-              image: "/api/placeholder/32/32",
-            },
-            quantity: 2,
-            price: 32.5,
-          },
-        ],
-        order_type: "delivery",
-        total_amount: 110.99,
-        status: "preparing",
-        created_at: "2024-01-15T14:30:00Z",
-      },
-      {
-        id: 2,
-        customer_name: "Jane Smith",
-        customer_email: "jane@example.com",
-        customer_phone: "+0987654321",
-        delivery_address: null,
-        order_items_list: [
-          {
-            menu_item: {
-              name: "Malawah Pancakes",
-              image: "/api/placeholder/32/32",
-            },
-            quantity: 1,
-            price: 12.99,
-          },
-        ],
-        order_type: "pickup",
-        total_amount: 12.99,
-        status: "ready",
-        created_at: "2024-01-15T15:20:00Z",
-      },
-    ];
-    setOrders(mockOrders);
-    setFilteredOrders(mockOrders);
-  }, []);
+  // Helper function to get image URL
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return "/api/placeholder/32/32";
 
-  // Filter orders
+    // If it's already a full URL, use it
+    if (imageUrl.startsWith("http")) {
+      return imageUrl;
+    }
+
+    // If it's a relative path, prepend the backend URL
+    return `http://localhost:8000${imageUrl}`;
+  };
+
+  // Helper function to safely extract data from API response
+  const extractDataFromResponse = (data) => {
+    if (!data) return [];
+
+    console.log("Raw API response:", data); // Debug log
+
+    // Handle different response formats
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data.results && Array.isArray(data.results)) {
+      // Django REST framework pagination format
+      return data.results;
+    } else if (data.data && Array.isArray(data.data)) {
+      // Custom data format
+      return data.data;
+    } else if (typeof data === "object") {
+      // If it's a single object, wrap in array
+      return [data];
+    }
+
+    return [];
+  };
+
+  // Load orders from API
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (typeFilter) params.order_type = typeFilter;
+
+      console.log("Fetching orders with params:", params); // Debug log
+
+      const ordersData = await orderManagementApi.getOrders(params);
+
+      // Extract orders from response
+      const ordersList = extractDataFromResponse(ordersData);
+
+      console.log("Processed orders list:", ordersList); // Debug log
+      setOrders(ordersList);
+      setFilteredOrders(ordersList);
+    } catch (error) {
+      console.error("Error loading orders:", error);
+      setToastMessage("Error loading orders. Please try again.");
+      setShowToast(true);
+      setOrders([]);
+      setFilteredOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    loadOrders();
+  }, [statusFilter, typeFilter]);
+
+  // Filter orders locally for search
+  useEffect(() => {
+    if (!orders || orders.length === 0) {
+      setFilteredOrders([]);
+      return;
+    }
+
     let filtered = orders.filter((order) => {
+      if (!order || typeof order !== "object") return false;
+
+      const orderId = order.id ? order.id.toString() : "";
+      const customerName = order.customer_name || "";
+      const customerEmail = order.customer_email || "";
+      const customerPhone = order.customer_phone || "";
+
       const matchesSearch =
-        order.id.toString().includes(searchTerm.toLowerCase()) ||
-        order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customer_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (order.customer_phone && order.customer_phone.includes(searchTerm));
+        orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerPhone.includes(searchTerm);
 
-      const matchesStatus =
-        !statusFilter ||
-        order.status.toLowerCase() === statusFilter.toLowerCase();
-      const matchesType =
-        !typeFilter ||
-        order.order_type.toLowerCase() === typeFilter.toLowerCase();
-
-      return matchesSearch && matchesStatus && matchesType;
+      return matchesSearch;
     });
     setFilteredOrders(filtered);
-  }, [searchTerm, statusFilter, typeFilter, orders]);
+  }, [searchTerm, orders]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -109,15 +131,28 @@ const Orders = () => {
     setTypeFilter("");
   };
 
+  const handleStatusUpdate = async (orderId, newStatus) => {
+    try {
+      await orderManagementApi.updateOrderStatus(orderId, newStatus);
+      setToastMessage(`Order status updated to ${newStatus}`);
+      setShowToast(true);
+      loadOrders(); // Refresh the list
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      setToastMessage("Error updating order status");
+      setShowToast(true);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const baseClasses =
       "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold transition-all";
 
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "preparing":
-        return `${baseClasses} bg-yellow-100 text-yellow-800 animate-pulse`;
+        return `${baseClasses} bg-yellow-100 text-yellow-800`;
       case "ready":
-        return `${baseClasses} bg-green-100 text-green-800 animate-pulse`;
+        return `${baseClasses} bg-green-100 text-green-800`;
       case "delivered":
         return `${baseClasses} bg-blue-100 text-blue-800`;
       case "cancelled":
@@ -134,7 +169,7 @@ const Orders = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "preparing":
         return <Hourglass className="w-3 h-3" />;
       case "ready":
@@ -155,16 +190,69 @@ const Orders = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!dateString) return "Unknown";
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      return "Invalid date";
+    }
   };
+
+  const getOrderItemsPreview = (order) => {
+    if (order.order_items_preview && order.order_items_preview.length > 0) {
+      return order.order_items_preview;
+    }
+    if (order.items && order.items.length > 0) {
+      return order.items.slice(0, 3);
+    }
+    return [];
+  };
+
+  const getOrderId = (order) => {
+    if (!order || !order.id) return "Unknown";
+
+    // Handle UUID format
+    if (typeof order.id === "string") {
+      if (order.id.length > 8) {
+        return `#${order.id.slice(0, 8).toUpperCase()}`;
+      }
+      return `#${order.id}`;
+    }
+
+    return `#${order.id}`;
+  };
+
+  const safeToFixed = (value, decimals = 2) => {
+    if (value === null || value === undefined) return "0.00";
+    const num = typeof value === "string" ? parseFloat(value) : value;
+    return isNaN(num) ? "0.00" : num.toFixed(decimals);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex justify-center items-center py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+          <span className="ml-2 text-gray-600">Loading orders...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <Toast
+        message={toastMessage}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        type="success"
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
         <div className="flex-1">
@@ -184,11 +272,14 @@ const Orders = () => {
           </span>
         </div>
 
-        {/* Add New Order Button */}
+        {/* Refresh Button */}
         <div className="mt-4 sm:mt-0 sm:ml-4">
-          <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2 rounded text-sm font-medium shadow-sm transition-all inline-flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add New Order
+          <button
+            onClick={loadOrders}
+            className="bg-primary hover:bg-accent text-white px-5 py-2 rounded text-sm font-medium shadow-sm transition-all inline-flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
           </button>
         </div>
       </div>
@@ -214,13 +305,13 @@ const Orders = () => {
             className="border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-400 focus:outline-none"
           >
             <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
             <option value="preparing">Preparing</option>
             <option value="ready">Ready</option>
             <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="confirmed">Confirmed</option>
             <option value="completed">Completed</option>
-            <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
           </select>
 
           {/* Type Filter */}
@@ -279,151 +370,174 @@ const Orders = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredOrders.map((order) => (
-              <tr
-                key={order.id}
-                className="hover:bg-gray-50 transition-all duration-200"
-              >
-                <td className="px-3 py-2 align-top font-medium text-gray-800">
-                  #{order.id}
-                </td>
+            {filteredOrders.length > 0 ? (
+              filteredOrders.map((order) => (
+                <tr
+                  key={order.id}
+                  className="hover:bg-gray-50 transition-all duration-200"
+                >
+                  <td className="px-3 py-2 align-top font-medium text-gray-800">
+                    {getOrderId(order)}
+                  </td>
 
-                {/* Customer Column */}
-                <td className="px-3 py-2 align-top text-xs text-gray-700">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {order.customer_name}
-                    </span>
-                    {order.delivery_address ? (
-                      <span className="text-gray-600 text-xs">
-                        {order.delivery_address}
+                  {/* Customer Column */}
+                  <td className="px-3 py-2 align-top text-xs text-gray-700">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {order.customer_name || "Unknown Customer"}
                       </span>
+                      {order.delivery_address ? (
+                        <span className="text-gray-600 text-xs">
+                          {order.delivery_address}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">
+                          No address
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Contact Column */}
+                  <td className="px-3 py-2 align-top text-xs text-gray-700">
+                    {order.customer_phone ? (
+                      <div className="text-xs text-gray-600">
+                        {order.customer_phone}
+                      </div>
                     ) : (
-                      <span className="text-gray-400 italic text-xs">
-                        No address
+                      <span className="text-gray-400 italic">No phone</span>
+                    )}
+                    {order.customer_email && (
+                      <span className="text-gray-500 text-[11px] block">
+                        {order.customer_email}
                       </span>
                     )}
-                  </div>
-                </td>
+                  </td>
 
-                {/* Contact Column */}
-                <td className="px-3 py-2 align-top text-xs text-gray-700">
-                  {order.customer_phone ? (
-                    <div className="text-xs text-gray-600">
-                      {order.customer_phone}
-                    </div>
-                  ) : (
-                    <span className="text-gray-400 italic">No phone</span>
-                  )}
-                  {order.customer_email && (
-                    <span className="text-gray-500 text-[11px] block">
-                      {order.customer_email}
-                    </span>
-                  )}
-                </td>
-
-                {/* Items Column */}
-                <td className="px-3 py-2 align-top text-xs text-gray-600">
-                  {order.order_items_list &&
-                  order.order_items_list.length > 0 ? (
-                    <div className="space-y-1">
-                      {order.order_items_list.map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 bg-gray-50 hover:bg-yellow-50 p-1 rounded-md transition-all duration-200"
-                        >
-                          <img
-                            src={
-                              item.menu_item.image || "/api/placeholder/32/32"
-                            }
-                            alt={item.menu_item.name}
-                            className="w-8 h-8 rounded object-cover border border-gray-200 shadow-sm"
-                          />
-                          <div className="flex flex-col leading-tight text-left">
-                            <span className="text-gray-800 font-medium text-[13px]">
-                              {item.menu_item.name}
-                            </span>
-                            <span className="text-gray-500 text-[11px]">
-                              Qty: {item.quantity} × ${item.price.toFixed(2)}
-                            </span>
+                  {/* Items Column */}
+                  <td className="px-3 py-2 align-top text-xs text-gray-600">
+                    {getOrderItemsPreview(order).length > 0 ? (
+                      <div className="space-y-1">
+                        {getOrderItemsPreview(order).map((item, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 bg-gray-50 hover:bg-yellow-50 p-1 rounded-md transition-all duration-200"
+                          >
+                            <img
+                              src={getImageUrl(item.menu_item_details?.image)}
+                              alt={
+                                item.cached_item_name ||
+                                item.menu_item_details?.name
+                              }
+                              className="w-8 h-8 rounded object-cover border border-gray-200 shadow-sm"
+                              onError={(e) => {
+                                e.target.src = "/api/placeholder/32/32";
+                              }}
+                            />
+                            <div className="flex flex-col leading-tight text-left">
+                              <span className="text-gray-800 font-medium text-[13px]">
+                                {item.cached_item_name ||
+                                  item.menu_item_details?.name ||
+                                  "Unknown Item"}
+                              </span>
+                              <span className="text-gray-500 text-[11px]">
+                                Qty: {item.quantity} × $
+                                {safeToFixed(item.price_at_time)}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-gray-400 italic">No items</span>
-                  )}
-                  {order.order_items_list &&
-                    order.order_items_list.length > 0 && (
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic">No items</span>
+                    )}
+                    {getOrderItemsPreview(order).length > 0 && (
                       <p className="text-[11px] text-gray-400 mt-1 italic">
-                        {order.order_items_list.length}
-                        {order.order_items_list.length === 1
-                          ? " item"
-                          : " items"}
+                        {order.items_count ||
+                          getOrderItemsPreview(order).length}
+                        {order.items_count === 1 ? " item" : " items"}
                       </p>
                     )}
-                </td>
+                  </td>
 
-                {/* Type Column */}
-                <td className="px-3 py-2 align-top text-center">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md ${
-                      order.order_type === "delivery"
-                        ? "bg-purple-100 text-purple-800 hover:bg-purple-200"
-                        : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                    }`}
-                  >
-                    {order.order_type === "delivery" ? (
-                      <Truck className="w-3 h-3" />
-                    ) : (
-                      <Store className="w-3 h-3" />
-                    )}
-                    {order.order_type.charAt(0).toUpperCase() +
-                      order.order_type.slice(1)}
-                  </span>
-                </td>
+                  {/* Type Column */}
+                  <td className="px-3 py-2 align-top text-center">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md ${
+                        order.order_type === "delivery"
+                          ? "bg-purple-100 text-purple-800 hover:bg-purple-200"
+                          : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                      }`}
+                    >
+                      {order.order_type === "delivery" ? (
+                        <Truck className="w-3 h-3" />
+                      ) : (
+                        <Store className="w-3 h-3" />
+                      )}
+                      {order.order_type
+                        ? order.order_type.charAt(0).toUpperCase() +
+                          order.order_type.slice(1)
+                        : "Unknown"}
+                    </span>
+                  </td>
 
-                <td className="px-3 py-2 align-top font-semibold text-gray-800">
-                  ${order.total_amount.toFixed(2)}
-                </td>
+                  <td className="px-3 py-2 align-top font-semibold text-gray-800">
+                    ${safeToFixed(order.total_amount)}
+                  </td>
 
-                {/* Status Column */}
-                <td className="px-3 py-2 align-top text-center">
-                  <span className={getStatusBadge(order.status)}>
-                    {getStatusIcon(order.status)}
-                    {order.status.charAt(0).toUpperCase() +
-                      order.status.slice(1)}
-                  </span>
-                </td>
+                  {/* Status Column */}
+                  <td className="px-3 py-2 align-top text-center">
+                    <select
+                      value={order.status || "pending"}
+                      onChange={(e) =>
+                        handleStatusUpdate(order.id, e.target.value)
+                      }
+                      className={`text-xs font-semibold border-0 rounded-full px-2 py-1 focus:ring-2 focus:ring-yellow-400 focus:outline-none ${getStatusBadge(
+                        order.status
+                      )
+                        .split(" ")
+                        .filter((c) => c.includes("bg-") || c.includes("text-"))
+                        .join(" ")}`}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="preparing">Preparing</option>
+                      <option value="ready">Ready</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </td>
 
-                <td className="hidden lg:table-cell px-3 py-2 align-top text-xs text-gray-600">
-                  {formatDate(order.created_at)}
-                </td>
+                  <td className="hidden lg:table-cell px-3 py-2 align-top text-xs text-gray-600">
+                    {formatDate(order.created_at)}
+                  </td>
 
-                {/* Actions Column */}
-                <td className="px-3 py-2 align-top">
-                  <div className="flex space-x-2">
-                    <button className="text-blue-600 hover:text-blue-800 p-1">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button className="text-green-600 hover:text-green-800 p-1">
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button className="text-red-600 hover:text-red-800 p-1">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {/* Actions Column */}
+                  <td className="px-3 py-2 align-top">
+                    <div className="flex space-x-2">
+                      <button className="text-blue-600 hover:text-blue-800 p-1">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button className="text-green-600 hover:text-green-800 p-1">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button className="text-red-600 hover:text-red-800 p-1">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="9" className="px-3 py-8 text-center text-gray-500">
+                  No orders found matching your criteria.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
-
-        {filteredOrders.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No orders found matching your criteria.
-          </div>
-        )}
       </div>
     </div>
   );

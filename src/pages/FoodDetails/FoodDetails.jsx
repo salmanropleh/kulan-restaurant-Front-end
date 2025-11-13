@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Heart, Clock, Users, Star, ArrowLeft } from "lucide-react";
-import { menuItems } from "../../data/menuData";
+import { menuApi } from "../../services/menuApi";
+import { orderApi } from "../../services/orderApi";
 import Toast from "../../components/ui/Toast/Toast";
 
 const FoodDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [item, setItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState({
     spiceLevel: "Medium",
@@ -18,38 +20,77 @@ const FoodDetails = () => {
   const [toastMessage, setToastMessage] = useState("");
   const [isInCart, setIsInCart] = useState(false);
   const [cartItemQuantity, setCartItemQuantity] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedFavorites = localStorage.getItem("kulanFavorites");
-    if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
-    checkIfItemInCart();
+    loadItem();
+    loadFavorites();
   }, [id]);
 
-  const item = Object.values(menuItems)
-    .flat()
-    .find((item) => item.id === parseInt(id));
-
   useEffect(() => {
-    if (!item) navigate("/");
-  }, [item, navigate]);
+    if (item) {
+      checkIfItemInCart();
+    }
+  }, [item, selectedOptions]);
 
-  // Check if item is already in cart
-  const checkIfItemInCart = () => {
-    const cart = JSON.parse(localStorage.getItem("kulanCart") || "[]");
-    const existingItem = cart.find(
-      (cartItem) =>
-        cartItem.id === parseInt(id) &&
-        cartItem.spice === selectedOptions.spiceLevel &&
-        JSON.stringify(cartItem.extras) ===
-          JSON.stringify(selectedOptions.toppings.map((t) => t.name)) &&
-        cartItem.note === selectedOptions.instructions
-    );
+  const loadItem = async () => {
+    setLoading(true);
+    try {
+      const data = await menuApi.getItemById(id);
+      setItem(data);
+    } catch (error) {
+      console.error("Error loading item:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    if (existingItem) {
-      setIsInCart(true);
-      setCartItemQuantity(existingItem.quantity);
-      setQuantity(existingItem.quantity);
-    } else {
+  const loadFavorites = () => {
+    const savedFavorites = localStorage.getItem("kulanFavorites");
+    if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
+  };
+
+  const checkIfItemInCart = async () => {
+    if (!item) return;
+
+    try {
+      const cartData = await orderApi.getCart();
+
+      const existingItem = cartData.items.find((cartItem) => {
+        if (parseInt(cartItem.menu_item) !== parseInt(id)) return false;
+
+        const sameSpice = cartItem.spice_level === selectedOptions.spiceLevel;
+
+        const cartExtras = Array.isArray(cartItem.extras)
+          ? cartItem.extras
+          : [];
+        const currentExtras = Array.isArray(selectedOptions.toppings)
+          ? selectedOptions.toppings.map((t) => t.name)
+          : [];
+
+        const sameExtras =
+          JSON.stringify(cartExtras.sort()) ===
+          JSON.stringify(currentExtras.sort());
+
+        const cartNotes = (cartItem.special_notes || "").trim();
+        const currentNotes = (selectedOptions.instructions || "").trim();
+        const sameNotes = cartNotes === currentNotes;
+
+        return sameSpice && sameExtras && sameNotes;
+      });
+
+      if (existingItem) {
+        setIsInCart(true);
+        setCartItemQuantity(existingItem.quantity);
+        setQuantity(existingItem.quantity);
+      } else {
+        setIsInCart(false);
+        setCartItemQuantity(0);
+        setQuantity(1);
+      }
+    } catch (error) {
+      console.error("Error checking cart:", error);
+      // No localStorage fallback - just reset state
       setIsInCart(false);
       setCartItemQuantity(0);
       setQuantity(1);
@@ -76,50 +117,39 @@ const FoodDetails = () => {
 
   const isFavorite = (itemId) => favorites.includes(itemId);
 
-  const handleAddToOrder = (item, quantity, options) => {
-    const cart = JSON.parse(localStorage.getItem("kulanCart") || "[]");
+  const handleAddToOrder = async (item, quantity, options) => {
+    try {
+      const itemData = {
+        menu_item_id: item.id,
+        quantity: quantity,
+        extras: options.toppings.map((topping) => topping.name),
+        spice_level: options.spiceLevel,
+        special_notes: options.instructions,
+      };
 
-    // Extract the topping names and create extras array
-    const extras = options.toppings.map((topping) => topping.name);
+      console.log("Adding to cart:", itemData);
 
-    const cartItem = {
-      ...item,
-      quantity,
-      spice: options.spiceLevel,
-      note: options.instructions,
-      extras: extras,
-      totalPrice: item.price * quantity,
-    };
+      const result = await orderApi.addToCart(itemData);
 
-    // Check if same item with same options already exists
-    const existingIndex = cart.findIndex(
-      (cartItem) =>
-        cartItem.id === item.id &&
-        cartItem.spice === options.spiceLevel &&
-        JSON.stringify(cartItem.extras) === JSON.stringify(extras) &&
-        cartItem.note === options.instructions
-    );
+      if (result.success) {
+        setIsInCart(true);
+        setCartItemQuantity(quantity);
+        setToastMessage(`🎉 ${quantity} x ${item.name} added to cart!`);
+        setShowToast(true);
 
-    if (existingIndex > -1) {
-      // Update quantity if same item with same options exists
-      cart[existingIndex].quantity = quantity;
-      cart[existingIndex].totalPrice = cart[existingIndex].price * quantity;
-    } else {
-      // Add new item
-      cart.push(cartItem);
+        setTimeout(() => {
+          checkIfItemInCart();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      setToastMessage("Error adding item to cart. Please try again.");
+      setShowToast(true);
     }
-
-    localStorage.setItem("kulanCart", JSON.stringify(cart));
-    setIsInCart(true);
-    setCartItemQuantity(quantity);
-    setToastMessage(`🎉 ${quantity} x ${item.name} added to cart!`);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleQuantityChange = (newQuantity) => {
+  const handleQuantityChange = async (newQuantity) => {
     if (newQuantity < 1) {
-      // Remove from cart if quantity becomes 0
       removeFromCart();
       return;
     }
@@ -127,70 +157,94 @@ const FoodDetails = () => {
     setQuantity(newQuantity);
 
     if (isInCart) {
-      updateCartQuantity(newQuantity);
+      await updateCartQuantity(newQuantity);
     }
   };
 
-  const updateCartQuantity = (newQuantity) => {
-    const cart = JSON.parse(localStorage.getItem("kulanCart") || "[]");
-    const extras = selectedOptions.toppings.map((topping) => topping.name);
+  const updateCartQuantity = async (newQuantity) => {
+    try {
+      const cartData = await orderApi.getCart();
+      const cartItem = cartData.items.find((item) => {
+        if (parseInt(item.menu_item) !== parseInt(id)) return false;
 
-    const existingIndex = cart.findIndex(
-      (cartItem) =>
-        cartItem.id === parseInt(id) &&
-        cartItem.spice === selectedOptions.spiceLevel &&
-        JSON.stringify(cartItem.extras) === JSON.stringify(extras) &&
-        cartItem.note === selectedOptions.instructions
-    );
+        const sameSpice = item.spice_level === selectedOptions.spiceLevel;
+        const cartExtras = Array.isArray(item.extras) ? item.extras : [];
+        const currentExtras = Array.isArray(selectedOptions.toppings)
+          ? selectedOptions.toppings.map((t) => t.name)
+          : [];
+        const sameExtras =
+          JSON.stringify(cartExtras.sort()) ===
+          JSON.stringify(currentExtras.sort());
+        const cartNotes = (item.special_notes || "").trim();
+        const currentNotes = (selectedOptions.instructions || "").trim();
+        const sameNotes = cartNotes === currentNotes;
 
-    if (existingIndex > -1) {
-      if (newQuantity > 0) {
-        // Update quantity
-        cart[existingIndex].quantity = newQuantity;
-        cart[existingIndex].totalPrice =
-          cart[existingIndex].price * newQuantity;
-        setToastMessage(`🛒 Quantity updated to ${newQuantity}`);
-      } else {
-        // Remove from cart
-        cart.splice(existingIndex, 1);
-        setIsInCart(false);
-        setCartItemQuantity(0);
-        setToastMessage("🗑️ Item removed from cart");
+        return sameSpice && sameExtras && sameNotes;
+      });
+
+      if (cartItem) {
+        const result = await orderApi.updateCartItem(cartItem.id, newQuantity);
+        if (result.success) {
+          setCartItemQuantity(newQuantity);
+          setToastMessage(`🛒 Quantity updated to ${newQuantity}`);
+          setShowToast(true);
+        }
       }
-
-      localStorage.setItem("kulanCart", JSON.stringify(cart));
+    } catch (error) {
+      console.error("Error updating quantity:", error);
+      setToastMessage("Error updating quantity. Please try again.");
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
-  const removeFromCart = () => {
-    const cart = JSON.parse(localStorage.getItem("kulanCart") || "[]");
-    const extras = selectedOptions.toppings.map((topping) => topping.name);
+  const removeFromCart = async () => {
+    try {
+      const cartData = await orderApi.getCart();
+      const cartItem = cartData.items.find((item) => {
+        if (parseInt(item.menu_item) !== parseInt(id)) return false;
 
-    const updatedCart = cart.filter(
-      (cartItem) =>
-        !(
-          cartItem.id === parseInt(id) &&
-          cartItem.spice === selectedOptions.spiceLevel &&
-          JSON.stringify(cartItem.extras) === JSON.stringify(extras) &&
-          cartItem.note === selectedOptions.instructions
-        )
-    );
+        const sameSpice = item.spice_level === selectedOptions.spiceLevel;
+        const cartExtras = Array.isArray(item.extras) ? item.extras : [];
+        const currentExtras = Array.isArray(selectedOptions.toppings)
+          ? selectedOptions.toppings.map((t) => t.name)
+          : [];
+        const sameExtras =
+          JSON.stringify(cartExtras.sort()) ===
+          JSON.stringify(currentExtras.sort());
+        const cartNotes = (item.special_notes || "").trim();
+        const currentNotes = (selectedOptions.instructions || "").trim();
+        const sameNotes = cartNotes === currentNotes;
 
-    localStorage.setItem("kulanCart", JSON.stringify(updatedCart));
-    setIsInCart(false);
-    setCartItemQuantity(0);
-    setQuantity(1);
-    setToastMessage("🗑️ Item removed from cart");
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+        return sameSpice && sameExtras && sameNotes;
+      });
+
+      if (cartItem) {
+        const result = await orderApi.removeCartItem(cartItem.id);
+        if (result.success) {
+          setIsInCart(false);
+          setCartItemQuantity(0);
+          setQuantity(1);
+          setToastMessage("🗑️ Item removed from cart");
+          setShowToast(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error removing from cart:", error);
+      setToastMessage("Error removing item from cart. Please try again.");
+      setShowToast(true);
+    }
   };
 
-  // Re-check cart when options change
-  useEffect(() => {
-    checkIfItemInCart();
-  }, [selectedOptions]);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-gray-600">Loading item details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!item) {
     return (
@@ -209,6 +263,12 @@ const FoodDetails = () => {
       </div>
     );
   }
+
+  const toppingPrice = selectedOptions.toppings.reduce(
+    (total, topping) => total + parseFloat(topping.price),
+    0
+  );
+  const totalPrice = (parseFloat(item.price) + toppingPrice) * quantity;
 
   return (
     <div className="min-h-screen bg-gray-50 py-3 sm:py-6">
@@ -257,7 +317,6 @@ const FoodDetails = () => {
                 className="w-full h-full object-cover"
               />
 
-              {/* Popular Badge */}
               {item.popular && (
                 <span className="absolute top-2 left-2 bg-secondary text-white px-2 py-1 rounded-full font-semibold text-xs shadow">
                   Popular
@@ -272,79 +331,83 @@ const FoodDetails = () => {
               </h3>
 
               <div className="space-y-3 sm:space-y-4">
-                {/* Spice Level */}
-                <div className="space-y-1 sm:space-y-2">
-                  <label className="font-semibold text-gray-900 text-sm sm:text-base">
-                    Spice Level
-                  </label>
-                  <div className="flex flex-wrap gap-1 sm:gap-2">
-                    {["Mild", "Medium", "Hot", "Extra Hot"].map((level) => (
-                      <label
-                        key={level}
-                        className="flex items-center cursor-pointer"
-                      >
-                        <input
-                          type="radio"
-                          name="spiceLevel"
-                          value={level}
-                          checked={selectedOptions.spiceLevel === level}
-                          onChange={(e) =>
-                            setSelectedOptions({
-                              ...selectedOptions,
-                              spiceLevel: e.target.value,
-                            })
-                          }
-                          className="mr-1 sm:mr-2 w-3 h-3 text-primary focus:ring-primary"
-                        />
-                        <span className="text-xs sm:text-sm text-gray-700 font-medium">
-                          {level}
-                        </span>
-                      </label>
-                    ))}
+                {/* Spice Level - Only show if customizable */}
+                {item.customizable_spice && (
+                  <div className="space-y-1 sm:space-y-2">
+                    <label className="font-semibold text-gray-900 text-sm sm:text-base">
+                      Spice Level
+                    </label>
+                    <div className="flex flex-wrap gap-1 sm:gap-2">
+                      {["Mild", "Medium", "Hot", "Extra Hot"].map((level) => (
+                        <label
+                          key={level}
+                          className="flex items-center cursor-pointer"
+                        >
+                          <input
+                            type="radio"
+                            name="spiceLevel"
+                            value={level}
+                            checked={selectedOptions.spiceLevel === level}
+                            onChange={(e) =>
+                              setSelectedOptions({
+                                ...selectedOptions,
+                                spiceLevel: e.target.value,
+                              })
+                            }
+                            className="mr-1 sm:mr-2 w-3 h-3 text-primary focus:ring-primary"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700 font-medium">
+                            {level}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Extra Toppings */}
-                <div className="space-y-1 sm:space-y-2">
-                  <label className="font-semibold text-gray-900 text-sm sm:text-base">
-                    Extra Toppings
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2">
-                    {item.extraToppings?.map((topping) => (
-                      <label
-                        key={topping.name}
-                        className="flex items-center cursor-pointer p-1 sm:p-2 rounded border border-gray-200 hover:border-primary transition-colors text-xs sm:text-sm"
-                      >
-                        <input
-                          type="checkbox"
-                          className="mr-1 sm:mr-2 w-3 h-3 text-primary focus:ring-primary"
-                          onChange={(e) => {
-                            const toppings = selectedOptions.toppings;
-                            if (e.target.checked) {
-                              setSelectedOptions({
-                                ...selectedOptions,
-                                toppings: [...toppings, topping],
-                              });
-                            } else {
-                              setSelectedOptions({
-                                ...selectedOptions,
-                                toppings: toppings.filter(
-                                  (t) => t.name !== topping.name
-                                ),
-                              });
-                            }
-                          }}
-                        />
-                        <span className="text-gray-700 font-medium flex-1">
-                          {topping.name}
-                        </span>
-                        <span className="text-primary font-semibold">
-                          +${topping.price}
-                        </span>
-                      </label>
-                    ))}
+                {item.extra_toppings && item.extra_toppings.length > 0 && (
+                  <div className="space-y-1 sm:space-y-2">
+                    <label className="font-semibold text-gray-900 text-sm sm:text-base">
+                      Extra Toppings
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2">
+                      {item.extra_toppings.map((topping) => (
+                        <label
+                          key={topping.name}
+                          className="flex items-center cursor-pointer p-1 sm:p-2 rounded border border-gray-200 hover:border-primary transition-colors text-xs sm:text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            className="mr-1 sm:mr-2 w-3 h-3 text-primary focus:ring-primary"
+                            onChange={(e) => {
+                              const toppings = selectedOptions.toppings;
+                              if (e.target.checked) {
+                                setSelectedOptions({
+                                  ...selectedOptions,
+                                  toppings: [...toppings, topping],
+                                });
+                              } else {
+                                setSelectedOptions({
+                                  ...selectedOptions,
+                                  toppings: toppings.filter(
+                                    (t) => t.name !== topping.name
+                                  ),
+                                });
+                              }
+                            }}
+                          />
+                          <span className="text-gray-700 font-medium flex-1">
+                            {topping.name}
+                          </span>
+                          <span className="text-primary font-semibold">
+                            +${parseFloat(topping.price).toFixed(2)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Special Instructions */}
                 <div className="space-y-1 sm:space-y-2">
@@ -377,7 +440,7 @@ const FoodDetails = () => {
                   {item.name}
                 </h1>
                 <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary bg-primary/10 px-2 sm:px-3 py-1 rounded-lg inline-block sm:inline">
-                  ${item.price}
+                  ${parseFloat(item.price).toFixed(2)}
                 </span>
               </div>
 
@@ -387,13 +450,13 @@ const FoodDetails = () => {
                   Description
                 </h3>
                 <p className="text-gray-700 leading-relaxed text-xs sm:text-sm lg:text-base">
-                  {item.detailedDescription || item.description}
+                  {item.detailed_description || item.description}
                 </p>
               </div>
             </div>
 
             {/* Ingredients */}
-            {item.ingredients && (
+            {item.ingredients && item.ingredients.length > 0 && (
               <div className="bg-white rounded-lg p-3 sm:p-4 shadow-md">
                 <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 border-b pb-2">
                   Ingredients
@@ -465,7 +528,7 @@ const FoodDetails = () => {
                       Prep Time
                     </p>
                     <p className="text-sm sm:text-base font-bold text-gray-900">
-                      {item.prepTime}
+                      {item.prep_time}
                     </p>
                   </div>
                 </div>
@@ -484,7 +547,6 @@ const FoodDetails = () => {
               </div>
             </div>
 
-            {/* Order Section */}
             {/* Order Section */}
             <div className="bg-white rounded-lg p-3 sm:p-4 shadow-md sticky bottom-2 border border-primary/20">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
@@ -514,8 +576,13 @@ const FoodDetails = () => {
                 <div className="text-center sm:text-right">
                   <p className="text-xs text-gray-600 mb-0.5">Total Price</p>
                   <p className="text-xl sm:text-2xl font-bold text-primary">
-                    ${(item.price * quantity).toFixed(2)}
+                    ${totalPrice.toFixed(2)}
                   </p>
+                  {toppingPrice > 0 && (
+                    <p className="text-xs text-gray-500">
+                      Includes ${toppingPrice.toFixed(2)} in toppings
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -526,7 +593,7 @@ const FoodDetails = () => {
                   }
                   className="w-full bg-primary text-white py-2 sm:py-3 rounded-lg font-bold text-sm sm:text-base hover:bg-accent transition-colors duration-200 shadow hover:shadow-md"
                 >
-                  Add to Order - ${(item.price * quantity).toFixed(2)}
+                  Add to Order - ${totalPrice.toFixed(2)}
                 </button>
               ) : (
                 <div className="text-center">

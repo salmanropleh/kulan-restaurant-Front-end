@@ -1,12 +1,47 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { CheckCircle, Clock, Truck } from "lucide-react";
+import { orderApi } from "../../services/orderApi";
 
 const OrderConfirmation = () => {
   const location = useLocation();
-  const { orderId, orderTotal } = location.state || {};
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!orderId) {
+  const { orderId, orderNumber, orderTotal, estimatedDelivery } =
+    location.state || {};
+
+  useEffect(() => {
+    if (orderId) {
+      loadOrderConfirmation();
+    } else {
+      setLoading(false);
+    }
+  }, [orderId]);
+
+  const loadOrderConfirmation = async () => {
+    try {
+      const orderData = await orderApi.getOrderConfirmation(orderId);
+      setOrder(orderData);
+    } catch (error) {
+      console.error("Error loading order confirmation:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-gray-600">Loading order details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order && !orderId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -18,6 +53,12 @@ const OrderConfirmation = () => {
       </div>
     );
   }
+
+  const displayOrder = order || {
+    order_number: orderNumber || `#${orderId?.toUpperCase()}`,
+    grand_total: orderTotal,
+    estimated_delivery: estimatedDelivery || "25-35 minutes",
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -37,19 +78,23 @@ const OrderConfirmation = () => {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Order Number:</span>
-                <span className="font-semibold">#{orderId}</span>
+                <span className="font-semibold">
+                  {displayOrder.order_number}
+                </span>
               </div>
 
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Amount:</span>
                 <span className="font-semibold text-primary">
-                  ${orderTotal?.toFixed(2)}
+                  ${parseFloat(displayOrder.grand_total).toFixed(2)}
                 </span>
               </div>
 
               <div className="flex justify-between">
                 <span className="text-gray-600">Estimated Delivery:</span>
-                <span className="font-semibold">25-35 minutes</span>
+                <span className="font-semibold">
+                  {displayOrder.estimated_delivery}
+                </span>
               </div>
             </div>
           </div>

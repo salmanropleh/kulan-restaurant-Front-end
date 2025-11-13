@@ -1,8 +1,11 @@
 import React from "react";
 import { Menu, Utensils } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+
 const Header = ({ onToggleSidebar, mobileSidebarOpen }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Get user initial from user data
   const getUserInitial = () => {
@@ -18,22 +21,32 @@ const Header = ({ onToggleSidebar, mobileSidebarOpen }) => {
     }
   };
 
+  // Handle navigation to home
+  const handleGoHome = () => {
+    navigate("/");
+  };
+
   return (
     <header className="bg-secondary text-white shadow-sm border-b border-orange-600">
       <div className="flex items-center justify-between px-6 py-4">
         {/* Left side: Brand Logo/Icon */}
         <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-          <div className="bg-white p-4 rounded-lg flex-shrink-0">
-            <Utensils className="text-orange-500 h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base sm:text-lg md:text-xl font-bold text-white truncate">
-              KULAN RESTAURANT
-            </h1>
-            <p className="text-xs text-orange-100 block truncate">
-              Admin Dashboard
-            </p>
-          </div>
+          <button
+            onClick={handleGoHome}
+            className="flex items-center space-x-2 sm:space-x-3 min-w-0 hover:opacity-80 transition-opacity text-left"
+          >
+            <div className="bg-white p-4 rounded-lg flex-shrink-0">
+              <Utensils className="text-orange-500 h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <div className="min-w-0 flex flex-col items-start">
+              <h1 className="text-base sm:text-lg md:text-xl font-bold text-white truncate w-full">
+                KULAN RESTAURANT
+              </h1>
+              <p className="text-xs text-orange-100 truncate w-full">
+                Admin Dashboard
+              </p>
+            </div>
+          </button>
         </div>
 
         {/* Right side: Hamburger menu (mobile) and User icon */}

@@ -11,132 +11,123 @@ import {
   Clock,
   Hourglass,
   Ban,
+  RefreshCw,
 } from "lucide-react";
+import { orderManagementApi } from "../../services/orderManagementApi";
+import Toast from "../../components/ui/Toast/Toast";
 
 const OrderItems = () => {
-  const [orderItems, setOrderItems] = useState([]);
+  const [groupedOrders, setGroupedOrders] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [groupedOrders, setGroupedOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
-  // Mock data - replace with actual API call
+  // Helper function to get image URL
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return "/api/placeholder/32/32";
+
+    // If it's already a full URL, use it
+    if (imageUrl.startsWith("http")) {
+      return imageUrl;
+    }
+
+    // If it's a relative path, prepend the backend URL
+    return `http://localhost:8000${imageUrl}`;
+  };
+
+  // Helper function to safely extract data from API response
+  const extractDataFromResponse = (data) => {
+    if (!data) return [];
+
+    console.log("Raw grouped order items API response:", data); // Debug log
+
+    // Handle different response formats
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data.results && Array.isArray(data.results)) {
+      // Django REST framework pagination format
+      return data.results;
+    } else if (data.data && Array.isArray(data.data)) {
+      // Custom data format
+      return data.data;
+    } else if (typeof data === "object") {
+      // If it's a single object, wrap in array
+      return [data];
+    }
+
+    return [];
+  };
+
+  // Load grouped order items from API
+  const loadGroupedOrderItems = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (searchTerm) params.search = searchTerm;
+
+      console.log("Fetching grouped order items with params:", params); // Debug log
+
+      const groupedData = await orderManagementApi.getGroupedOrderItems(params);
+
+      // Extract data from response
+      const processedData = extractDataFromResponse(groupedData);
+
+      console.log("Processed grouped order items:", processedData); // Debug log
+      setGroupedOrders(processedData);
+      setFilteredItems(processedData);
+    } catch (error) {
+      console.error("Error loading order items:", error);
+      setToastMessage("Error loading order items. Please try again.");
+      setShowToast(true);
+      setGroupedOrders([]);
+      setFilteredItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const mockOrderItems = [
-      {
-        id: 1,
-        order: {
-          id: 1001,
-          customer_name: "John Doe",
-          total_amount: 110.99,
-          status: "Preparing",
-        },
-        menu_item: {
-          id: 1,
-          name: "KULAN Signature Platter",
-          image: "/api/placeholder/40/40",
-          category: { name: "KULAN Specialties" },
-        },
-        price: 45.99,
-        quantity: 1,
-      },
-      {
-        id: 2,
-        order: {
-          id: 1001,
-          customer_name: "John Doe",
-          total_amount: 110.99,
-          status: "Preparing",
-        },
-        menu_item: {
-          id: 2,
-          name: "Sanaki Wa Kupaka",
-          image: "/api/placeholder/40/40",
-          category: { name: "Dinner" },
-        },
-        price: 32.5,
-        quantity: 2,
-      },
-      {
-        id: 3,
-        order: {
-          id: 1002,
-          customer_name: "Jane Smith",
-          total_amount: 45.99,
-          status: "Ready",
-        },
-        menu_item: {
-          id: 3,
-          name: "Malawah Pancakes",
-          image: null,
-          category: { name: "Breakfast" },
-        },
-        price: 12.99,
-        quantity: 1,
-      },
-      {
-        id: 4,
-        order: {
-          id: 1003,
-          customer_name: "Mike Johnson",
-          total_amount: 25.5,
-          status: "Delivered",
-        },
-        menu_item: {
-          id: 4,
-          name: "Hilib Ari",
-          image: "/api/placeholder/40/40",
-          category: { name: "Lunch" },
-        },
-        price: 25.5,
-        quantity: 1,
-      },
-    ];
-    setOrderItems(mockOrderItems);
+    loadGroupedOrderItems();
+  }, [statusFilter]);
 
-    // Group items by order
-    const grouped = mockOrderItems.reduce((acc, item) => {
-      const orderId = item.order.id;
-      if (!acc[orderId]) {
-        acc[orderId] = {
-          order: item.order,
-          items: [],
-        };
-      }
-      acc[orderId].items.push(item);
-      return acc;
-    }, {});
-
-    setGroupedOrders(Object.values(grouped));
-    setFilteredItems(Object.values(grouped));
-  }, []);
-
-  // Filter items
+  // Filter items locally for search
   useEffect(() => {
     let filtered = groupedOrders.filter((group) => {
+      if (!group || typeof group !== "object") return false;
+
+      const orderId = group.order?.id?.toString() || "";
+      const customerName = group.order?.customer_name || "";
+      const itemNames =
+        group.items
+          ?.map(
+            (item) =>
+              item.cached_item_name || item.menu_item_details?.name || ""
+          )
+          .join(" ") || "";
+      const categories =
+        group.items
+          ?.map(
+            (item) =>
+              item.cached_item_category ||
+              item.menu_item_details?.category?.name ||
+              ""
+          )
+          .join(" ") || "";
+
       const matchesSearch =
-        group.order.customer_name
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        group.order.id.toString().includes(searchTerm) ||
-        group.items.some(
-          (item) =>
-            item.menu_item.name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase()) ||
-            item.menu_item.category.name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())
-        );
+        orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        itemNames.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        categories.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus =
-        !statusFilter ||
-        group.order.status.toLowerCase() === statusFilter.toLowerCase();
-
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     });
     setFilteredItems(filtered);
-  }, [searchTerm, statusFilter, groupedOrders]);
+  }, [searchTerm, groupedOrders]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -147,11 +138,11 @@ const OrderItems = () => {
     const baseClasses =
       "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105";
 
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "preparing":
-        return `${baseClasses} bg-yellow-100 text-yellow-800 animate-pulse`;
+        return `${baseClasses} bg-yellow-100 text-yellow-800`;
       case "ready":
-        return `${baseClasses} bg-green-100 text-green-800 animate-pulse`;
+        return `${baseClasses} bg-green-100 text-green-800`;
       case "delivered":
         return `${baseClasses} bg-blue-100 text-blue-800`;
       case "cancelled":
@@ -166,7 +157,7 @@ const OrderItems = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "preparing":
         return <Hourglass className="w-3 h-3" />;
       case "ready":
@@ -186,13 +177,37 @@ const OrderItems = () => {
 
   const getTotalItems = () => {
     return filteredItems.reduce(
-      (total, group) => total + group.items.length,
+      (total, group) => total + (group.items?.length || 0),
       0
     );
   };
 
+  const safeToFixed = (value, decimals = 2) => {
+    if (value === null || value === undefined) return "0.00";
+    const num = typeof value === "string" ? parseFloat(value) : value;
+    return isNaN(num) ? "0.00" : num.toFixed(decimals);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex justify-center items-center py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+          <span className="ml-2 text-gray-600">Loading order items...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <Toast
+        message={toastMessage}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        type="success"
+      />
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
         <div>
@@ -203,10 +218,17 @@ const OrderItems = () => {
             View and manage individual menu items within each order.
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex items-center gap-4">
           <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
             {getTotalItems()} item{getTotalItems() !== 1 ? "s" : ""} found
           </span>
+          <button
+            onClick={loadGroupedOrderItems}
+            className="bg-primary hover:bg-accent text-white px-4 py-2 rounded text-sm font-medium shadow-sm transition-all inline-flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -229,12 +251,13 @@ const OrderItems = () => {
             className="border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-400 focus:outline-none"
           >
             <option value="">All Status</option>
-            <option value="Preparing">Preparing</option>
-            <option value="Ready">Ready</option>
-            <option value="Delivered">Delivered</option>
-            <option value="Cancelled">Cancelled</option>
-            <option value="Confirmed">Confirmed</option>
-            <option value="Pending">Pending</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="preparing">Preparing</option>
+            <option value="ready">Ready</option>
+            <option value="delivered">Delivered</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
           </select>
           <button
             onClick={clearFilters}
@@ -262,25 +285,31 @@ const OrderItems = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredItems.map((group) => (
+              {filteredItems.map((group, groupIndex) => (
                 <tr
-                  key={group.order.id}
+                  key={group.order?.id || groupIndex}
                   className="hover:bg-gray-50 transition-all duration-200"
                 >
                   {/* Order & Item Info */}
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-col gap-1">
-                      {group.items.map((item) => (
+                      {group.items?.map((item, itemIndex) => (
                         <div
-                          key={item.id}
+                          key={item.id || itemIndex}
                           className="flex items-center space-x-3 bg-gray-50 hover:bg-yellow-50 p-1 rounded transition-all duration-200"
                         >
                           {/* Item Image */}
-                          {item.menu_item.image ? (
+                          {item.menu_item_details?.image ? (
                             <img
-                              src={item.menu_item.image}
-                              alt={item.menu_item.name}
+                              src={getImageUrl(item.menu_item_details.image)}
+                              alt={
+                                item.cached_item_name ||
+                                item.menu_item_details?.name
+                              }
                               className="w-10 h-10 rounded object-cover border border-gray-200"
+                              onError={(e) => {
+                                e.target.src = "/api/placeholder/32/32";
+                              }}
                             />
                           ) : (
                             <div className="w-10 h-10 rounded bg-gray-200 border border-gray-200 flex items-center justify-center">
@@ -292,18 +321,21 @@ const OrderItems = () => {
                           <div className="flex-1">
                             {/* Item Name */}
                             <div className="font-medium text-gray-800">
-                              {item.menu_item.name}
+                              {item.cached_item_name ||
+                                item.menu_item_details?.name ||
+                                "Unknown Item"}
                             </div>
 
                             {/* Order Number & Customer Name */}
                             <div className="text-xs text-gray-500">
-                              Order #{group.order.id} •{" "}
-                              {group.order.customer_name}
+                              Order #{group.order?.id?.slice(0, 8) || "Unknown"}{" "}
+                              •{" "}
+                              {group.order?.customer_name || "Unknown Customer"}
                             </div>
 
                             {/* Item ID */}
                             <div className="text-xs text-gray-400">
-                              #{item.menu_item.id}
+                              #{item.id?.slice(0, 8) || "Unknown"}
                             </div>
                           </div>
                         </div>
@@ -313,29 +345,34 @@ const OrderItems = () => {
 
                   {/* Category */}
                   <td className="px-4 py-3 text-gray-600 align-top">
-                    {group.items[0].menu_item.category?.name || "Uncategorized"}
+                    {group.items?.[0]?.cached_item_category ||
+                      group.items?.[0]?.menu_item_details?.category?.name ||
+                      "Uncategorized"}
                   </td>
 
                   {/* Quantity */}
                   <td className="px-4 py-3 text-center align-top">
-                    {group.items.length}
+                    {group.items?.reduce(
+                      (total, item) => total + (item.quantity || 0),
+                      0
+                    ) || 0}
                   </td>
 
                   {/* Unit Price */}
                   <td className="px-4 py-3 text-right align-top">
-                    ${group.items[0].price.toFixed(2)}
+                    ${safeToFixed(group.items?.[0]?.price_at_time)}
                   </td>
 
                   {/* Total */}
                   <td className="px-4 py-3 text-right font-semibold align-top">
-                    ${group.order.total_amount.toFixed(2)}
+                    ${safeToFixed(group.order?.total_amount)}
                   </td>
 
                   {/* Status Badge */}
                   <td className="px-4 py-3 text-center align-top">
-                    <span className={getStatusBadge(group.order.status)}>
-                      {getStatusIcon(group.order.status)}
-                      {group.order.status}
+                    <span className={getStatusBadge(group.order?.status)}>
+                      {getStatusIcon(group.order?.status)}
+                      {group.order?.status || "Unknown"}
                     </span>
                   </td>
 

@@ -1,78 +1,146 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Eye, Edit, Trash2, Search, Tags, X } from "lucide-react";
-
-// Mock data - replace with actual API calls
-const mockCategories = [
-  {
-    id: 1,
-    name: "Breakfast",
-    description: "Morning meals and breakfast specials",
-    item_count: 8,
-    created_at: "2024-01-15",
-  },
-  {
-    id: 2,
-    name: "Lunch",
-    description: "Midday meals and lunch combos",
-    item_count: 12,
-    created_at: "2024-01-10",
-  },
-  {
-    id: 3,
-    name: "Dinner",
-    description: "Evening meals and dinner specials",
-    item_count: 15,
-    created_at: "2024-01-05",
-  },
-  {
-    id: 4,
-    name: "KULAN Specialties",
-    description: "Our signature dishes and house specials",
-    item_count: 6,
-    created_at: "2024-01-20",
-  },
-];
+import {
+  Plus,
+  Eye,
+  Edit,
+  Trash2,
+  Search,
+  Tags,
+  X,
+  RefreshCw,
+} from "lucide-react";
+import { categoriesApi } from "../../services/categoriesApi";
+import Toast from "../../components/ui/Toast/Toast";
 
 const Categories = () => {
-  const [categories, setCategories] = useState(mockCategories);
-  const [filteredCategories, setFilteredCategories] = useState(mockCategories);
+  const [categories, setCategories] = useState([]);
+  const [filteredCategories, setFilteredCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
-  const categoryTypes = ["Breakfast", "Lunch", "Dinner", "KULAN Specialties"];
+  // Load categories from API
+  const loadCategories = async () => {
+    setLoading(true);
+    try {
+      const categoriesData = await categoriesApi.getCategories();
+      console.log("Raw categories data:", categoriesData); // Debug log
 
-  // Filter categories based on search and filter
-  useEffect(() => {
-    let filtered = categories.filter((category) => {
-      const matchesSearch =
-        searchTerm === "" ||
-        category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        category.description.toLowerCase().includes(searchTerm.toLowerCase());
+      // Handle both array and object with results property
+      let categoriesList = [];
 
-      const matchesCategory =
-        !categoryFilter || category.name === categoryFilter;
+      if (Array.isArray(categoriesData)) {
+        categoriesList = categoriesData;
+      } else if (categoriesData.results) {
+        categoriesList = categoriesData.results;
+      } else if (categoriesData) {
+        categoriesList = [categoriesData];
+      }
 
-      return matchesSearch && matchesCategory;
-    });
-
-    setFilteredCategories(filtered);
-  }, [searchTerm, categoryFilter, categories]);
-
-  const clearFilters = () => {
-    setSearchTerm("");
-    setCategoryFilter("");
-  };
-
-  const handleDelete = (categoryId) => {
-    if (window.confirm("Are you sure you want to delete this category?")) {
-      setCategories(categories.filter((cat) => cat.id !== categoryId));
+      console.log("Processed categories:", categoriesList);
+      setCategories(categoriesList);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      setToastMessage("Error loading categories. Please try again.");
+      setShowToast(true);
+      setCategories([]);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  // Filter categories based on search
+  useEffect(() => {
+    if (!categories || categories.length === 0) {
+      setFilteredCategories([]);
+      return;
+    }
+
+    let filtered = categories.filter((category) => {
+      const matchesSearch =
+        searchTerm === "" ||
+        (category.name &&
+          category.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (category.description &&
+          category.description
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()));
+
+      return matchesSearch;
+    });
+
+    setFilteredCategories(filtered);
+  }, [searchTerm, categories]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+  };
+
+  const handleDelete = async (categoryId) => {
+    if (window.confirm("Are you sure you want to delete this category?")) {
+      try {
+        await categoriesApi.deleteCategory(categoryId);
+        setToastMessage("Category deleted successfully");
+        setShowToast(true);
+        loadCategories(); // Refresh the list
+      } catch (error) {
+        console.error("Error deleting category:", error);
+        setToastMessage("Error deleting category");
+        setShowToast(true);
+      }
+    }
+  };
+
+  // Get item count - handle different field names
+  const getItemCount = (category) => {
+    return (
+      category.item_count ||
+      category.items_count ||
+      category.menu_items_count ||
+      0
+    );
+  };
+
+  // Format date safely
+  const formatDate = (dateString) => {
+    if (!dateString) return "Unknown";
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch (error) {
+      return "Unknown";
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex justify-center items-center py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+          <span className="ml-2 text-gray-600">Loading categories...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    // REMOVED DashboardLayout wrapper - we're already inside it
     <>
+      <Toast
+        message={toastMessage}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        type="success"
+      />
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">
           Categories Management
@@ -88,20 +156,29 @@ const Categories = () => {
               All Categories
             </h2>
             <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-              <span id="item-count">{filteredCategories.length}</span>{" "}
-              category/categories found
+              {filteredCategories.length} categor
+              {filteredCategories.length !== 1 ? "ies" : "y"} found
             </span>
           </div>
-          <Link
-            to="/admin/categories/add"
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 text-sm shadow-sm hover:shadow transition-colors duration-200"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add New Category</span>
-          </Link>
+          <div className="flex gap-2">
+            <button
+              onClick={loadCategories}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 text-sm shadow-sm hover:shadow transition-colors duration-200"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Refresh</span>
+            </button>
+            <Link
+              to="/admin/categories/add"
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 text-sm shadow-sm hover:shadow transition-colors duration-200"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add New Category</span>
+            </Link>
+          </div>
         </div>
 
-        {/* Filters & Search Bar */}
+        {/* Search Bar */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Search Bar */}
@@ -116,23 +193,8 @@ const Categories = () => {
               />
             </div>
 
-            {/* Filters and Clear Button - Right Aligned */}
+            {/* Clear Filters */}
             <div className="flex items-center gap-2 ml-auto">
-              {/* Category Filter */}
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none"
-              >
-                <option value="">All Categories</option>
-                {categoryTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-
-              {/* Clear Filters */}
               <button
                 onClick={clearFilters}
                 className="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
@@ -173,17 +235,17 @@ const Categories = () => {
                 </thead>
 
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredCategories.map((category) => (
+                  {filteredCategories.map((category, index) => (
                     <tr
                       key={category.id}
                       className="category-item hover:bg-gray-50 transition-colors duration-150 sm:table-row block border-b sm:border-none p-3 sm:p-0"
                     >
-                      {/* ID */}
+                      {/* ID - Using numeric index + 1 */}
                       <td className="px-4 py-3 text-gray-500 text-sm sm:table-cell block">
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           ID
                         </div>
-                        #{category.id}
+                        #{index + 1}
                       </td>
 
                       {/* Name */}
@@ -192,7 +254,7 @@ const Categories = () => {
                           Name
                         </div>
                         <div className="font-medium break-words">
-                          {category.name}
+                          {category.name || "Unnamed Category"}
                         </div>
                       </td>
 
@@ -211,8 +273,15 @@ const Categories = () => {
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           Menu Items
                         </div>
-                        <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                          {category.item_count} items
+                        <span
+                          className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border ${
+                            getItemCount(category) > 0
+                              ? "bg-green-100 text-green-800 border-green-200"
+                              : "bg-gray-100 text-gray-600 border-gray-200"
+                          }`}
+                        >
+                          {getItemCount(category)} item
+                          {getItemCount(category) !== 1 ? "s" : ""}
                         </span>
                       </td>
 
@@ -221,14 +290,7 @@ const Categories = () => {
                         <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
                           Created
                         </div>
-                        {new Date(category.created_at).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          }
-                        )}
+                        {formatDate(category.created_at)}
                       </td>
 
                       {/* Actions */}
@@ -274,11 +336,13 @@ const Categories = () => {
             <div className="text-center py-8 sm:py-12">
               <Tags className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 text-sm sm:text-base mb-2">
-                No categories found.
+                {categories.length === 0
+                  ? "No categories found."
+                  : "No categories match your search."}
               </p>
               <p className="text-gray-400 text-xs sm:text-sm mb-4">
-                {searchTerm || categoryFilter
-                  ? "Try adjusting your filters."
+                {searchTerm
+                  ? "Try adjusting your search term."
                   : "Create your first category to get started."}
               </p>
               <Link
@@ -291,6 +355,34 @@ const Categories = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Debug panel - remove in production */}
+      <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs">
+        <details>
+          <summary className="cursor-pointer font-semibold">
+            Debug Information
+          </summary>
+          <div className="mt-2">
+            <p>
+              <strong>Total categories:</strong> {categories.length}
+            </p>
+            <p>
+              <strong>Filtered categories:</strong> {filteredCategories.length}
+            </p>
+            <p>
+              <strong>Search term:</strong> "{searchTerm}"
+            </p>
+            <p>
+              <strong>Sample category data:</strong>
+            </p>
+            <pre className="mt-1 text-xs">
+              {categories.length > 0
+                ? JSON.stringify(categories[0], null, 2)
+                : "No categories"}
+            </pre>
+          </div>
+        </details>
       </div>
     </>
   );

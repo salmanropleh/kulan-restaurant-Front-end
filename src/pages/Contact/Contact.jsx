@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { MapPin, Phone, Mail, Clock, Send, Loader } from "lucide-react";
 import Toast from "../../components/ui/Toast/Toast";
+import { contactAPI } from "../../services/contactAPI";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -12,32 +13,41 @@ const Contact = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const result = await contactAPI.sendMessage(formData);
 
-    console.log("Form submitted:", formData);
-    setIsLoading(false);
-    setShowSuccess(true);
+      setShowSuccess(true);
 
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      subject: "",
-      message: "",
-    });
+      // Reset form
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        subject: "",
+        message: "",
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setError(error.message || "Failed to send message. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const operatingHours = [
@@ -54,6 +64,14 @@ const Contact = () => {
         isVisible={showSuccess}
         onClose={() => setShowSuccess(false)}
         type="success"
+      />
+
+      {/* Error Toast */}
+      <Toast
+        message={error}
+        isVisible={!!error}
+        onClose={() => setError(null)}
+        type="error"
       />
 
       {/* Hero Section */}

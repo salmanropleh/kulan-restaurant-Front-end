@@ -1,19 +1,22 @@
+// Front-End\src\pages\Reservations\Reservations.jsx
 import React, { useState } from "react";
 import { Calendar, Clock, Users, Phone, Mail, Loader } from "lucide-react";
 import Toast from "../../components/ui/Toast/Toast";
 
 const Reservations = () => {
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    date: "",
-    time: "",
-    guests: "2",
-    specialRequests: "",
+    customer_name: "",
+    customer_email: "",
+    customer_phone: "",
+    reservation_date: "",
+    reservation_time: "",
+    number_of_guests: "2",
+    special_requests: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
     setFormData({
@@ -25,42 +28,91 @@ const Reservations = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setShowError(false);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const response = await fetch(
+        "http://localhost:8000/api/reservations/reservations/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            // No authentication needed - public API
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
-    console.log("Reservation submitted:", formData);
-    setIsLoading(false);
-    setShowSuccess(true);
+      if (!response.ok) {
+        const errorData = await response.json();
 
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      date: "",
-      time: "",
-      guests: "2",
-      specialRequests: "",
-    });
+        // Handle validation errors from Django
+        if (errorData.detail) {
+          throw new Error(errorData.detail);
+        }
+
+        // Handle field-specific errors
+        if (typeof errorData === "object") {
+          const fieldErrors = Object.values(errorData).flat().join(", ");
+          throw new Error(fieldErrors || "Failed to create reservation");
+        }
+
+        throw new Error("Failed to create reservation");
+      }
+
+      const result = await response.json();
+      console.log("Reservation created:", result);
+
+      setShowSuccess(true);
+
+      // Reset form
+      setFormData({
+        customer_name: "",
+        customer_email: "",
+        customer_phone: "",
+        reservation_date: "",
+        reservation_time: "",
+        number_of_guests: "2",
+        special_requests: "",
+      });
+    } catch (error) {
+      console.error("Error creating reservation:", error);
+      setErrorMessage(
+        error.message || "Failed to create reservation. Please try again."
+      );
+      setShowError(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const timeSlots = [
-    "11:00 AM",
-    "11:30 AM",
-    "12:00 PM",
-    "12:30 PM",
-    "1:00 PM",
-    "1:30 PM",
-    "5:00 PM",
-    "5:30 PM",
-    "6:00 PM",
-    "6:30 PM",
-    "7:00 PM",
-    "7:30 PM",
-    "8:00 PM",
+    "11:00",
+    "11:30",
+    "12:00",
+    "12:30",
+    "13:00",
+    "13:30",
+    "17:00",
+    "17:30",
+    "18:00",
+    "18:30",
+    "19:00",
+    "19:30",
+    "20:00",
   ];
 
   const today = new Date().toISOString().split("T")[0];
+
+  // Format time for display (convert 24h to 12h)
+  const formatTimeForDisplay = (time) => {
+    if (!time) return "";
+    const [hours, minutes] = time.split(":");
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -70,6 +122,14 @@ const Reservations = () => {
         isVisible={showSuccess}
         onClose={() => setShowSuccess(false)}
         type="success"
+      />
+
+      {/* Error Toast */}
+      <Toast
+        message={errorMessage}
+        isVisible={showError}
+        onClose={() => setShowError(false)}
+        type="error"
       />
 
       {/* Hero Section */}
@@ -147,16 +207,16 @@ const Reservations = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label
-                        htmlFor="name"
+                        htmlFor="customer_name"
                         className="block text-sm font-medium text-gray-700 mb-2"
                       >
                         Full Name *
                       </label>
                       <input
                         type="text"
-                        id="name"
-                        name="name"
-                        value={formData.name}
+                        id="customer_name"
+                        name="customer_name"
+                        value={formData.customer_name}
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
@@ -166,16 +226,16 @@ const Reservations = () => {
 
                     <div>
                       <label
-                        htmlFor="email"
+                        htmlFor="customer_email"
                         className="block text-sm font-medium text-gray-700 mb-2"
                       >
                         Email Address *
                       </label>
                       <input
                         type="email"
-                        id="email"
-                        name="email"
-                        value={formData.email}
+                        id="customer_email"
+                        name="customer_email"
+                        value={formData.customer_email}
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
@@ -187,16 +247,16 @@ const Reservations = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label
-                        htmlFor="phone"
+                        htmlFor="customer_phone"
                         className="block text-sm font-medium text-gray-700 mb-2"
                       >
                         Phone Number *
                       </label>
                       <input
                         type="tel"
-                        id="phone"
-                        name="phone"
-                        value={formData.phone}
+                        id="customer_phone"
+                        name="customer_phone"
+                        value={formData.customer_phone}
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
@@ -206,15 +266,15 @@ const Reservations = () => {
 
                     <div>
                       <label
-                        htmlFor="guests"
+                        htmlFor="number_of_guests"
                         className="block text-sm font-medium text-gray-700 mb-2"
                       >
                         Number of Guests *
                       </label>
                       <select
-                        id="guests"
-                        name="guests"
-                        value={formData.guests}
+                        id="number_of_guests"
+                        name="number_of_guests"
+                        value={formData.number_of_guests}
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
@@ -232,7 +292,7 @@ const Reservations = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label
-                        htmlFor="date"
+                        htmlFor="reservation_date"
                         className="block text-sm font-medium text-gray-700 mb-2"
                       >
                         <Calendar className="inline h-4 w-4 mr-2" />
@@ -240,9 +300,9 @@ const Reservations = () => {
                       </label>
                       <input
                         type="date"
-                        id="date"
-                        name="date"
-                        value={formData.date}
+                        id="reservation_date"
+                        name="reservation_date"
+                        value={formData.reservation_date}
                         onChange={handleChange}
                         required
                         min={today}
@@ -252,16 +312,16 @@ const Reservations = () => {
 
                     <div>
                       <label
-                        htmlFor="time"
+                        htmlFor="reservation_time"
                         className="block text-sm font-medium text-gray-700 mb-2"
                       >
                         <Clock className="inline h-4 w-4 mr-2" />
                         Time *
                       </label>
                       <select
-                        id="time"
-                        name="time"
-                        value={formData.time}
+                        id="reservation_time"
+                        name="reservation_time"
+                        value={formData.reservation_time}
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
@@ -269,7 +329,7 @@ const Reservations = () => {
                         <option value="">Select a time</option>
                         {timeSlots.map((slot) => (
                           <option key={slot} value={slot}>
-                            {slot}
+                            {formatTimeForDisplay(slot)}
                           </option>
                         ))}
                       </select>
@@ -278,15 +338,15 @@ const Reservations = () => {
 
                   <div>
                     <label
-                      htmlFor="specialRequests"
+                      htmlFor="special_requests"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
                       Special Requests
                     </label>
                     <textarea
-                      id="specialRequests"
-                      name="specialRequests"
-                      value={formData.specialRequests}
+                      id="special_requests"
+                      name="special_requests"
+                      value={formData.special_requests}
                       onChange={handleChange}
                       rows={4}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
@@ -311,7 +371,7 @@ const Reservations = () => {
                 </form>
               </div>
 
-              {/* Map/Additional Info Section */}
+              {/* Additional Info Section */}
               <div className="mt-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
                 <div className="h-48 bg-gray-100 flex items-center justify-center">
                   <div className="text-center">
