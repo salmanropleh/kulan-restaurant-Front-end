@@ -128,7 +128,7 @@ const Settings = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Full Name
                   </label>
                   <input
@@ -145,7 +145,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Email Address
                   </label>
                   <input
@@ -162,7 +162,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Phone Number
                   </label>
                   <input
@@ -180,7 +180,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Position
                   </label>
                   <input
@@ -225,7 +225,7 @@ const Settings = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Restaurant Name
                   </label>
                   <input
@@ -245,7 +245,7 @@ const Settings = () => {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Description
                   </label>
                   <textarea
@@ -265,7 +265,7 @@ const Settings = () => {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
                     Address
                   </label>
@@ -287,7 +287,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                     <Phone className="w-4 h-4" />
                     Phone
                   </label>
@@ -309,7 +309,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                     <Mail className="w-4 h-4" />
                     Email
                   </label>
@@ -330,7 +330,7 @@ const Settings = () => {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                     <Globe className="w-4 h-4" />
                     Website
                   </label>
@@ -438,7 +438,7 @@ const Settings = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Language
                   </label>
                   <select
@@ -461,7 +461,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Timezone
                   </label>
                   <select
@@ -489,7 +489,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Date Format
                   </label>
                   <select
@@ -514,7 +514,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Time Format
                   </label>
                   <select
@@ -536,7 +536,7 @@ const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2">
                     Items Per Page
                   </label>
                   <select

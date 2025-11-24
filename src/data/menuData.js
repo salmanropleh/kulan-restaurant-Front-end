@@ -722,8 +722,7 @@ export const menuItems = {
       detailedDescription:
         "A beautiful fusion of coastal flavors featuring our special rice blend cooked with fresh seafood and authentic Swahili spices. This dish captures the essence of the East African coastline with its aromatic spices and fresh ocean flavors.",
       price: 28,
-      image:
-        "https://images.unsplash.com/photo-1563379091339-03246963d96c?ixlib=rb-4.0.3",
+      image: "/images/shrimp-fried-rice.jpg", // Updated to match your actual filename
       popular: true,
       prepTime: "35-45 min",
       serves: "2-3 People",

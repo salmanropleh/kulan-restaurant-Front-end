@@ -8,13 +8,16 @@ import {
   User,
   ChevronDown,
   ShoppingCart,
-} from "lucide-react"; // Added ShoppingCart
+  ChevronRight,
+} from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import UserProfile from "../../ui/UserProfile/UserProfile";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuDropdownOpen, setIsMobileMenuDropdownOpen] =
+    useState(false);
   const location = useLocation();
   const { user } = useAuth();
 
@@ -204,25 +207,48 @@ const Header = () => {
                 Home
               </Link>
 
-              {/* Mobile Menu Dropdown Items */}
+              {/* Mobile Menu Dropdown - Now clickable with dropdown indicator */}
               <div className="border-t border-gray-200 pt-2 mt-2">
-                <div className="px-3 py-2 text-sm font-semibold text-gray-500">
-                  Menu
-                </div>
-                {menuDropdownItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`block font-medium py-2 px-6 rounded-lg text-base transition-colors ${
-                      isActive(item.href)
-                        ? "text-primary bg-primary/10"
-                        : "text-gray-600 hover:bg-gray-50"
+                <button
+                  className={`w-full flex items-center justify-between font-medium py-2 px-3 rounded-lg text-base transition-colors ${
+                    isMobileMenuDropdownOpen
+                      ? "text-primary bg-primary/10"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() =>
+                    setIsMobileMenuDropdownOpen(!isMobileMenuDropdownOpen)
+                  }
+                >
+                  <span>Menu</span>
+                  <ChevronRight
+                    className={`h-4 w-4 transition-transform duration-200 ${
+                      isMobileMenuDropdownOpen ? "rotate-90" : ""
                     }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
+                  />
+                </button>
+
+                {/* Dropdown items that appear when Menu is clicked */}
+                {isMobileMenuDropdownOpen && (
+                  <div className="pl-4 space-y-1 mt-1">
+                    {menuDropdownItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={`block font-medium py-2 px-3 rounded-lg text-base transition-colors ${
+                          isActive(item.href)
+                            ? "text-primary bg-primary/10"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          setIsMobileMenuDropdownOpen(false);
+                        }}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Rest of navigation items */}
@@ -241,7 +267,7 @@ const Header = () => {
                 </Link>
               ))}
 
-              {/* Mobile CTA Buttons */}
+              {/* Mobile CTA Buttons - Full width for better mobile experience */}
               <div className="flex flex-col gap-2 pt-3 mt-2 border-t border-gray-200">
                 <Link
                   to="/reservations"
@@ -258,14 +284,16 @@ const Header = () => {
                   <ShoppingCart className="h-4 w-4" />
                   <span>Cart</span>
                 </Link>
+
+                {/* Mobile User Profile - Full width and improved styling */}
                 {user ? (
-                  <div className="text-center py-2 px-4 text-base font-medium text-white bg-primary rounded-full">
-                    Welcome, {user.name}!
+                  <div className="w-full">
+                    <UserProfile mobileView={true} />
                   </div>
                 ) : (
                   <Link
                     to="/login"
-                    className="flex items-center justify-center space-x-2 bg-primary text-white px-4 py-2.5 rounded-full text-base font-medium text-center hover:bg-accent transition-colors"
+                    className="flex items-center justify-center space-x-2 bg-primary text-white px-4 py-2.5 rounded-full text-base font-medium text-center hover:bg-accent transition-colors w-full"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <User className="h-4 w-4" />

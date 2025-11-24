@@ -11,6 +11,10 @@ import {
   Image as ImageIcon,
   Clock,
   Users,
+  MoreVertical,
+  DollarSign,
+  Tag,
+  Filter,
 } from "lucide-react";
 import { menuApi } from "../../services/menuApi";
 import Toast from "../../components/ui/Toast/Toast";
@@ -28,6 +32,8 @@ const MenuItems = () => {
   const [loading, setLoading] = useState(true);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Load menu items and categories
   useEffect(() => {
@@ -112,6 +118,8 @@ const MenuItems = () => {
     setCategoryFilter("");
     setStatusFilter("");
     setTagFilter("");
+    setShowFilters(false);
+    setMobileMenuOpen(null);
   };
 
   const openImageModal = (imageUrl, itemName) => {
@@ -127,11 +135,10 @@ const MenuItems = () => {
   const handleDeleteItem = async (itemId, itemName) => {
     if (window.confirm(`Are you sure you want to delete "${itemName}"?`)) {
       try {
-        // In a real app, you would call menuApi.deleteItem(itemId)
-        // For now, we'll just show a success message
         setMenuItems((prev) => prev.filter((item) => item.id !== itemId));
         setToastMessage(`"${itemName}" has been deleted`);
         setShowToast(true);
+        setMobileMenuOpen(null);
       } catch (error) {
         console.error("Error deleting item:", error);
         setToastMessage("Error deleting item");
@@ -142,7 +149,6 @@ const MenuItems = () => {
 
   const handleToggleAvailability = async (itemId, currentStatus, itemName) => {
     try {
-      // In a real app, you would call menuApi.updateItem(itemId, { is_available: !currentStatus })
       setMenuItems((prev) =>
         prev.map((item) =>
           item.id === itemId ? { ...item, is_available: !currentStatus } : item
@@ -152,6 +158,7 @@ const MenuItems = () => {
         `"${itemName}" is now ${!currentStatus ? "available" : "unavailable"}`
       );
       setShowToast(true);
+      setMobileMenuOpen(null);
     } catch (error) {
       console.error("Error updating item:", error);
       setToastMessage("Error updating item");
@@ -166,7 +173,7 @@ const MenuItems = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-4">
       <Toast
         message={toastMessage}
         isVisible={showToast}
@@ -175,50 +182,59 @@ const MenuItems = () => {
       />
 
       {/* Header */}
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-gray-800 sm:text-2xl">
           Menu Items
         </h1>
-        <p className="text-xs sm:text-sm text-gray-600 mt-1">
+        <p className="text-gray-600 text-sm mt-1">
           Management section for menu items
         </p>
       </div>
 
       {/* Header with Add Button and Item Count */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
-        <div className="flex-1">
-          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-            {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}{" "}
-            found
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full sm:text-sm">
+            {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}
           </span>
         </div>
 
-        <div className="flex items-center gap-4 mt-4 sm:mt-0">
-          <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 text-sm shadow-sm hover:shadow transition-colors duration-200">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button className="flex-1 sm:flex-none bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-2 text-sm transition-colors">
             <Plus className="w-4 h-4" />
-            <span>Add New Menu Item</span>
+            <span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">Add New Item</span>
           </button>
         </div>
       </div>
 
-      {/* Filters & Search Bar */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          {/* Search Bar */}
+      {/* Search & Filters */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+        {/* Search Bar */}
+        <div className="flex gap-2 mb-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by item name, description..."
+              placeholder="Search menu items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm w-full focus:ring-2 focus:ring-green-400 focus:outline-none"
             />
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Category Filter */}
+          {/* Mobile Filters Toggle */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="sm:hidden border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm transition-colors"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Filters - Collapsible on mobile */}
+        <div className={`${showFilters ? "block" : "hidden"} sm:block`}>
+          <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
@@ -232,7 +248,6 @@ const MenuItems = () => {
               ))}
             </select>
 
-            {/* Status Filter */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -243,7 +258,6 @@ const MenuItems = () => {
               <option value="unavailable">Unavailable</option>
             </select>
 
-            {/* Tag Filter */}
             <select
               value={tagFilter}
               onChange={(e) => setTagFilter(e.target.value)}
@@ -254,152 +268,103 @@ const MenuItems = () => {
               <option value="regular">Regular</option>
             </select>
 
-            {/* Clear Filters */}
             <button
               onClick={clearFilters}
-              className="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
+              className="border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
             >
               <X className="w-4 h-4" />
-              Clear
+              <span>Clear</span>
             </button>
           </div>
         </div>
       </div>
 
+      {/* Content */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        {/* Table Header */}
-        <div className="p-3 sm:p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            All Menu Items
-          </h2>
-        </div>
-
-        <div className="p-2 sm:p-3 md:p-4">
-          {loading ? (
-            <div className="text-center py-8 sm:py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-              <p className="text-gray-500 text-sm sm:text-base mt-4">
-                Loading menu items...
-              </p>
-            </div>
-          ) : filteredItems.length > 0 ? (
-            <div className="items-table overflow-x-auto rounded-lg border border-gray-200">
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+            <p className="text-gray-500 text-sm mt-3">Loading menu items...</p>
+          </div>
+        ) : filteredItems.length > 0 ? (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50 hidden sm:table-header-group">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ID
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Image
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Item
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Category
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Price
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Tag
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Prep Time
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredItems.map((item) => (
                     <tr
                       key={item.id}
-                      className="menu-item hover:bg-gray-50 transition-colors duration-150 sm:table-row block border-b sm:border-none p-3 sm:p-0"
+                      className="hover:bg-gray-50 transition-colors"
                     >
-                      {/* ID */}
-                      <td className="px-3 py-2 text-gray-500 text-xs sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          ID
-                        </div>
-                        #{item.id}
-                      </td>
-
-                      {/* Image */}
-                      <td className="px-3 py-2 sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          Image
-                        </div>
-                        <div className="w-10 h-10 flex-shrink-0">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
                           {item.image ? (
                             <button
                               onClick={() =>
                                 openImageModal(item.image, item.name)
                               }
-                              className="w-full h-full focus:outline-none"
+                              className="flex-shrink-0"
                             >
                               <img
                                 src={item.image}
                                 alt={item.name}
-                                className="w-full h-full object-cover rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                                className="w-12 h-12 object-cover rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
                               />
                             </button>
                           ) : (
-                            <div className="w-full h-full bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                              <Utensils className="text-gray-400 w-3 h-3" />
+                            <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0">
+                              <Utensils className="text-gray-400 w-5 h-5" />
                             </div>
                           )}
-                        </div>
-                      </td>
-
-                      {/* Item */}
-                      <td className="px-3 py-2 text-gray-900 sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          Item
-                        </div>
-                        <div className="font-medium break-words">
-                          {item.name}
-                        </div>
-                        {item.description && (
-                          <div className="text-xs text-gray-500 mt-1 line-clamp-2">
-                            {item.description.length > 50
-                              ? `${item.description.substring(0, 50)}...`
-                              : item.description}
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {item.name}
+                            </div>
+                            {item.description && (
+                              <div className="text-xs text-gray-500 mt-1 line-clamp-1">
+                                {item.description}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </td>
-
-                      {/* Category */}
-                      <td className="px-3 py-2 text-gray-700 sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          Category
                         </div>
-                        <div className="break-words text-sm category-name">
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-700">
                           {item.category?.name || "Uncategorized"}
                         </div>
                       </td>
-
-                      {/* Price */}
-                      <td className="px-3 py-2 sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          Price
-                        </div>
+                      <td className="px-4 py-3">
                         <span className="font-medium text-gray-900">
                           ${parseFloat(item.price).toFixed(2)}
                         </span>
                       </td>
-
-                      {/* Status */}
-                      <td className="px-3 py-2 sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          Status
-                        </div>
+                      <td className="px-4 py-3">
                         <button
                           onClick={() =>
                             handleToggleAvailability(
@@ -408,14 +373,14 @@ const MenuItems = () => {
                               item.name
                             )
                           }
-                          className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
+                          className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
                             item.is_available !== false
                               ? "bg-green-100 text-green-800 border-green-200 hover:bg-green-200"
                               : "bg-red-100 text-red-800 border-red-200 hover:bg-red-200"
                           }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                            className={`w-2 h-2 rounded-full mr-2 ${
                               item.is_available !== false
                                 ? "bg-green-500"
                                 : "bg-red-500"
@@ -426,12 +391,7 @@ const MenuItems = () => {
                             : "Unavailable"}
                         </button>
                       </td>
-
-                      {/* Tag */}
-                      <td className="px-3 py-2 sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          Tag
-                        </div>
+                      <td className="px-4 py-3">
                         {item.popular ? (
                           <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
                             <Star className="text-yellow-600 w-3 h-3 mr-1" />
@@ -443,40 +403,23 @@ const MenuItems = () => {
                           </span>
                         )}
                       </td>
-
-                      {/* Prep Time */}
-                      <td className="px-3 py-2 text-gray-600 text-xs sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          Prep Time
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-gray-400" />
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Clock className="w-4 h-4 text-gray-400" />
                           {item.prep_time || "-"}
                         </div>
                       </td>
-
-                      {/* Actions */}
-                      <td className="px-3 py-2 sm:table-cell block">
-                        <div className="sm:hidden text-xs font-semibold text-gray-400 uppercase mb-1">
-                          Actions
-                        </div>
-                        <div className="flex space-x-3">
-                          <button
-                            className="text-green-600 hover:text-green-800 transition-colors duration-200"
-                            title="View Details"
-                          >
+                      <td className="px-4 py-3">
+                        <div className="flex space-x-2">
+                          <button className="text-green-600 hover:text-green-800 transition-colors">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button
-                            className="text-blue-600 hover:text-blue-800 transition-colors duration-200"
-                            title="Edit Item"
-                          >
+                          <button className="text-blue-600 hover:text-blue-800 transition-colors">
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteItem(item.id, item.name)}
-                            className="text-red-600 hover:text-red-800 transition-colors duration-200"
-                            title="Delete Item"
+                            className="text-red-600 hover:text-red-800 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -487,26 +430,183 @@ const MenuItems = () => {
                 </tbody>
               </table>
             </div>
-          ) : (
-            <div className="text-center py-8 sm:py-12">
-              <Utensils className="mx-auto text-3xl sm:text-4xl text-gray-300 mb-3 sm:mb-4" />
-              <p className="text-gray-500 text-sm sm:text-base mb-2">
-                {searchTerm || categoryFilter || statusFilter || tagFilter
-                  ? "No menu items match your filters."
-                  : "No menu items found."}
-              </p>
-              <p className="text-gray-400 text-xs sm:text-sm mb-4">
-                {searchTerm || categoryFilter || statusFilter || tagFilter
-                  ? "Try adjusting your filters or search term."
-                  : "Create your first menu item to get started."}
-              </p>
-              <button className="inline-flex items-center text-green-600 hover:text-green-700 text-xs sm:text-sm font-medium transition-colors duration-200">
-                <Plus className="w-3 h-3 mr-2" />
-                Add your first menu item
-              </button>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden space-y-3 p-4">
+              {filteredItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  {/* Card Header */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      {item.image ? (
+                        <button
+                          onClick={() => openImageModal(item.image, item.name)}
+                          className="flex-shrink-0"
+                        >
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-16 h-16 object-cover rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                          />
+                        </button>
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0">
+                          <Utensils className="text-gray-400 w-6 h-6" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 text-base truncate">
+                          {item.name}
+                        </h3>
+                        <p className="text-gray-600 text-sm mt-1 line-clamp-2">
+                          {item.description || "No description"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Mobile Menu */}
+                    <div className="relative">
+                      <button
+                        onClick={() =>
+                          setMobileMenuOpen(
+                            mobileMenuOpen === item.id ? null : item.id
+                          )
+                        }
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+
+                      {mobileMenuOpen === item.id && (
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                          <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </button>
+                          <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit Item
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleToggleAvailability(
+                                item.id,
+                                item.is_available,
+                                item.name
+                              )
+                            }
+                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            {item.is_available !== false
+                              ? "Mark Unavailable"
+                              : "Mark Available"}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item.id, item.name)}
+                            className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Item
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Details */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">Category</div>
+                      <div className="text-gray-700">
+                        {item.category?.name || "Uncategorized"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">Price</div>
+                      <div className="flex items-center gap-1 text-gray-900 font-medium">
+                        <DollarSign className="w-3 h-3" />
+                        {parseFloat(item.price).toFixed(2)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">Status</div>
+                      <button
+                        onClick={() =>
+                          handleToggleAvailability(
+                            item.id,
+                            item.is_available,
+                            item.name
+                          )
+                        }
+                        className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
+                          item.is_available !== false
+                            ? "bg-green-100 text-green-800 border-green-200 hover:bg-green-200"
+                            : "bg-red-100 text-red-800 border-red-200 hover:bg-red-200"
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                            item.is_available !== false
+                              ? "bg-green-500"
+                              : "bg-red-500"
+                          }`}
+                        ></span>
+                        {item.is_available !== false
+                          ? "Available"
+                          : "Unavailable"}
+                      </button>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">
+                        Prep Time
+                      </div>
+                      <div className="flex items-center gap-1 text-gray-600">
+                        <Clock className="w-3 h-3" />
+                        {item.prep_time || "-"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tag */}
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    {item.popular ? (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
+                        <Star className="text-yellow-600 w-3 h-3 mr-1" />
+                        Special Item
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                        <Tag className="w-3 h-3 mr-1" />
+                        Regular Item
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="text-center py-8">
+            <Utensils className="mx-auto text-4xl text-gray-300 mb-3" />
+            <p className="text-gray-500 text-sm mb-2">
+              {searchTerm || categoryFilter || statusFilter || tagFilter
+                ? "No menu items match your filters."
+                : "No menu items found."}
+            </p>
+            <p className="text-gray-400 text-xs mb-4">
+              {searchTerm || categoryFilter || statusFilter || tagFilter
+                ? "Try adjusting your filters or search term."
+                : "Create your first menu item to get started."}
+            </p>
+            <button className="inline-flex items-center text-green-600 hover:text-green-700 text-sm font-medium transition-colors">
+              <Plus className="w-4 h-4 mr-2" />
+              Add your first menu item
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Image Modal */}
@@ -525,7 +625,7 @@ const MenuItems = () => {
               </h3>
               <button
                 onClick={closeImageModal}
-                className="text-gray-500 hover:text-gray-700 text-xl"
+                className="text-gray-500 hover:text-gray-700"
               >
                 <X className="w-6 h-6" />
               </button>

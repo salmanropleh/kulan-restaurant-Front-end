@@ -1,6 +1,7 @@
-// Front-End\src\pages\Reservations\Reservations.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Calendar, Clock, Users, Phone, Mail, Loader } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import Toast from "../../components/ui/Toast/Toast";
 
 const Reservations = () => {
@@ -18,6 +19,24 @@ const Reservations = () => {
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Auto-fill form when user logs in or component mounts
+  useEffect(() => {
+    if (user) {
+      setFormData((prevData) => ({
+        ...prevData,
+        customer_name:
+          user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.username || "",
+        customer_email: user.email || "",
+        customer_phone: user.phone_number || "",
+      }));
+    }
+  }, [user]);
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -27,6 +46,21 @@ const Reservations = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check if user is logged in
+    if (!user) {
+      // Store form data in sessionStorage to restore after login
+      sessionStorage.setItem("pendingReservation", JSON.stringify(formData));
+      // Redirect to login page
+      navigate("/login", {
+        state: {
+          from: "/reservations",
+          message: "Please log in to make a reservation",
+        },
+      });
+      return;
+    }
+
     setIsLoading(true);
     setShowError(false);
 
@@ -37,9 +71,16 @@ const Reservations = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            // No authentication needed - public API
+            // Add authentication if your backend requires it for logged-in users
+            ...(user && {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            }),
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            ...formData,
+            // Optionally include user ID if your backend expects it
+            ...(user && { user: user.id }),
+          }),
         }
       );
 
@@ -65,11 +106,14 @@ const Reservations = () => {
 
       setShowSuccess(true);
 
-      // Reset form
+      // Reset form but keep user info
       setFormData({
-        customer_name: "",
-        customer_email: "",
-        customer_phone: "",
+        customer_name:
+          user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.username || "",
+        customer_email: user.email || "",
+        customer_phone: user.phone_number || "",
         reservation_date: "",
         reservation_time: "",
         number_of_guests: "2",
@@ -85,6 +129,24 @@ const Reservations = () => {
       setIsLoading(false);
     }
   };
+
+  // Check for pending reservation after login (when component mounts or user changes)
+  useEffect(() => {
+    if (user) {
+      const pendingReservation = sessionStorage.getItem("pendingReservation");
+      if (pendingReservation) {
+        const reservationData = JSON.parse(pendingReservation);
+        setFormData(reservationData);
+        sessionStorage.removeItem("pendingReservation");
+
+        // Show a message that the form has been restored
+        setShowSuccess(true);
+        setErrorMessage(
+          "Welcome back! Your reservation details have been restored. Click reserve again to submit."
+        );
+      }
+    }
+  }, [user]);
 
   const timeSlots = [
     "11:00",
@@ -141,6 +203,14 @@ const Reservations = () => {
           <p className="text-xl md:text-2xl max-w-3xl mx-auto">
             Secure your table for an unforgettable dining experience
           </p>
+          {!user && (
+            <div className="mt-4 bg-white/20 rounded-lg p-4 max-w-md mx-auto">
+              <p className="text-sm">
+                💡 <strong>Note:</strong> You need to be logged in to make a
+                reservation.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -190,6 +260,7 @@ const Reservations = () => {
                       <li>• Reservations held for 15 minutes</li>
                       <li>• Groups of 6+ require 24h notice</li>
                       <li>• Special requests accommodated</li>
+                      <li>• Login required to make reservations</li>
                     </ul>
                   </div>
                 </div>
@@ -202,6 +273,36 @@ const Reservations = () => {
                 <h2 className="text-2xl font-display font-bold text-gray-900 mb-6">
                   Book Your Table
                 </h2>
+
+                {!user && (
+                  <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800 flex items-center">
+                      <span className="mr-2">🔒</span>
+                      Please{" "}
+                      <button
+                        onClick={() =>
+                          navigate("/login", {
+                            state: { from: "/reservations" },
+                          })
+                        }
+                        className="text-primary font-semibold underline hover:no-underline mx-1"
+                      >
+                        log in
+                      </button>
+                      to make a reservation.
+                    </p>
+                  </div>
+                )}
+
+                {user && (
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-800 flex items-center">
+                      <span className="mr-2">✅</span>
+                      Your profile information has been auto-filled for
+                      convenience.
+                    </p>
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -221,6 +322,7 @@ const Reservations = () => {
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
                         placeholder="Your full name"
+                        disabled={!user}
                       />
                     </div>
 
@@ -240,6 +342,7 @@ const Reservations = () => {
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
                         placeholder="your.email@example.com"
+                        disabled={!user}
                       />
                     </div>
                   </div>
@@ -261,6 +364,7 @@ const Reservations = () => {
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
                         placeholder="+1 (555) 123-4567"
+                        disabled={!user}
                       />
                     </div>
 
@@ -278,6 +382,7 @@ const Reservations = () => {
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
+                        disabled={!user}
                       >
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                           <option key={num} value={num}>
@@ -307,6 +412,7 @@ const Reservations = () => {
                         required
                         min={today}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
+                        disabled={!user}
                       />
                     </div>
 
@@ -325,6 +431,7 @@ const Reservations = () => {
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
+                        disabled={!user}
                       >
                         <option value="">Select a time</option>
                         {timeSlots.map((slot) => (
@@ -351,12 +458,13 @@ const Reservations = () => {
                       rows={4}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
                       placeholder="Any special occasions, dietary requirements, or preferences..."
+                      disabled={!user}
                     />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || !user}
                     className="w-full bg-primary text-white py-4 px-6 rounded-lg font-semibold hover:bg-accent disabled:bg-gray-400 transition-all duration-200 flex items-center justify-center space-x-2 transform hover:scale-105 disabled:scale-100"
                   >
                     {isLoading ? (
@@ -364,8 +472,16 @@ const Reservations = () => {
                         <Loader className="h-5 w-5 animate-spin" />
                         <span>Processing...</span>
                       </>
+                    ) : !user ? (
+                      <>
+                        <Calendar className="h-5 w-5" />
+                        <span>Log In to Reserve Table</span>
+                      </>
                     ) : (
-                      <span>Reserve Table</span>
+                      <>
+                        <Calendar className="h-5 w-5" />
+                        <span>Reserve Table</span>
+                      </>
                     )}
                   </button>
                 </form>
@@ -382,6 +498,11 @@ const Reservations = () => {
                     <p className="text-sm text-gray-500 mt-2">
                       Confirmation will be sent via email
                     </p>
+                    {!user && (
+                      <p className="text-sm text-primary font-semibold mt-2">
+                        Please log in to make reservations
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

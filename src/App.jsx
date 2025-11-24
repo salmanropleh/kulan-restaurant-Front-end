@@ -1,4 +1,3 @@
-// Front-End/src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/layout/Layout/Layout";
@@ -16,9 +15,13 @@ import Checkout from "./pages/OrderProcess/Checkout";
 import { AuthProvider } from "./context/AuthContext";
 import Login from "./pages/Auth/Login";
 import Signup from "./pages/Auth/Signup";
+import ForgotPassword from "./pages/Auth/ForgotPassword";
+import ResetPassword from "./pages/Auth/ResetPassword";
 import ProfilePage from "./pages/Profile/ProfilePage";
 import OrderConfirmation from "./pages/OrderProcess/OrderConfirmation";
 import Dashboard from "./pages/Admin/Dashboard";
+import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute";
+import CheckoutRoute from "./components/CheckoutRoute/CheckoutRoute"; // FIXED IMPORT PATH
 
 function App() {
   return (
@@ -41,20 +44,49 @@ function App() {
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/reservations" element={<Reservations />} />
                   <Route path="/order-online" element={<CartPage />} />
-                  <Route path="/checkout" element={<Checkout />} />
+                  <Route
+                    path="/checkout"
+                    element={
+                      <CheckoutRoute>
+                        <Checkout />
+                      </CheckoutRoute>
+                    }
+                  />{" "}
+                  {/* FIXED: Only one checkout route */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
-                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route
+                    path="/reset-password/:token"
+                    element={<ResetPassword />}
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <ProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/order-confirmation"
                     element={<OrderConfirmation />}
                   />
+                  {/* REMOVED DUPLICATE CHECKOUT ROUTE */}
                 </Routes>
               </Layout>
             }
           />
-          {/* Admin dashboard route outside Layout */}
-          <Route path="/admin/*" element={<Dashboard />} />
+
+          {/* Admin dashboard route outside Layout with protection */}
+          <Route
+            path="/admin/*"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </AuthProvider>

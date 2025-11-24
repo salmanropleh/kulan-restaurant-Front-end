@@ -1,5 +1,7 @@
 const API_BASE_URL = "http://localhost:8000/api";
 
+// ==================== HELPER FUNCTIONS ====================
+
 // Helper function to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem("accessToken");
@@ -19,8 +21,12 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
+// ==================== ORDER API METHODS ====================
+
 export const orderApi = {
-  // Cart endpoints - ALL WITH CREDENTIALS
+  // ==================== CART ENDPOINTS ====================
+  // All cart endpoints include credentials for session handling
+
   getCart: async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/orderprocess/cart/`, {
@@ -99,7 +105,9 @@ export const orderApi = {
     }
   },
 
-  // Checkout endpoints - ALSO WITH CREDENTIALS
+  // ==================== CHECKOUT ENDPOINTS ====================
+  // All checkout endpoints include credentials for session handling
+
   createCheckoutSession: async (checkoutData) => {
     try {
       const response = await fetch(
@@ -136,7 +144,8 @@ export const orderApi = {
     }
   },
 
-  // Order confirmation
+  // ==================== ORDER CONFIRMATION ENDPOINTS ====================
+
   getOrderConfirmation: async (orderId) => {
     try {
       const response = await fetch(
@@ -150,6 +159,61 @@ export const orderApi = {
       return await handleResponse(response);
     } catch (error) {
       console.error("Error fetching order confirmation:", error);
+      throw error;
+    }
+  },
+
+  // ==================== USER ORDERS ENDPOINTS ====================
+  // Get all orders for the authenticated user
+
+  getUserOrders: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/orders/orders/`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+        credentials: "include", // CRITICAL: Include cookies/session
+      });
+      return await handleResponse(response);
+    } catch (error) {
+      console.error("Error fetching user orders:", error);
+      throw error;
+    }
+  },
+
+  // ==================== ORDER MANAGEMENT ENDPOINTS ====================
+  // Additional order-related endpoints can be added here
+
+  getOrderDetails: async (orderId) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/orders/orders/${orderId}/`,
+        {
+          method: "GET",
+          headers: getAuthHeaders(),
+          credentials: "include",
+        }
+      );
+      return await handleResponse(response);
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+      throw error;
+    }
+  },
+
+  updateOrderStatus: async (orderId, status) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/orders/orders/${orderId}/update_status/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ status }),
+          credentials: "include",
+        }
+      );
+      return await handleResponse(response);
+    } catch (error) {
+      console.error("Error updating order status:", error);
       throw error;
     }
   },

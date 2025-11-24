@@ -21,14 +21,18 @@ const FoodDetails = () => {
   const [isInCart, setIsInCart] = useState(false);
   const [cartItemQuantity, setCartItemQuantity] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  const [currentImagePath, setCurrentImagePath] = useState("");
 
   useEffect(() => {
+    console.log("FoodDetails mounted with ID:", id);
     loadItem();
     loadFavorites();
   }, [id]);
 
   useEffect(() => {
     if (item) {
+      console.log("Item loaded, checking cart...");
       checkIfItemInCart();
     }
   }, [item, selectedOptions]);
@@ -36,8 +40,43 @@ const FoodDetails = () => {
   const loadItem = async () => {
     setLoading(true);
     try {
+      console.log("Loading item with ID:", id);
       const data = await menuApi.getItemById(id);
-      setItem(data);
+
+      console.log("=== DEBUG: IMAGE PATH ANALYSIS ===");
+      console.log("Raw API response:", data);
+      console.log("Original image path from API:", data.image);
+      console.log("Window location origin:", window.location.origin);
+
+      // Transform image path to ensure consistency
+      let imagePath = data.image;
+
+      // Debug different path scenarios
+      if (imagePath) {
+        if (
+          imagePath.startsWith("/images/") &&
+          !imagePath.startsWith("/public/")
+        ) {
+          console.log("Path starts with /images/, adding /public prefix");
+          imagePath = "/public" + imagePath;
+        } else if (imagePath.startsWith("/public/images/")) {
+          console.log("Path already has /public prefix");
+        } else {
+          console.log("Path format unknown:", imagePath);
+        }
+
+        const testUrl = new URL(imagePath, window.location.origin).href;
+        console.log("Final image URL will be:", testUrl);
+      }
+
+      console.log("Final image path to use:", imagePath);
+      console.log("=== END DEBUG ===");
+
+      setItem({
+        ...data,
+        image: imagePath,
+      });
+      setCurrentImagePath(imagePath);
     } catch (error) {
       console.error("Error loading item:", error);
     } finally {
@@ -90,11 +129,38 @@ const FoodDetails = () => {
       }
     } catch (error) {
       console.error("Error checking cart:", error);
-      // No localStorage fallback - just reset state
       setIsInCart(false);
       setCartItemQuantity(0);
       setQuantity(1);
     }
+  };
+
+  const handleImageError = (e) => {
+    console.log("=== DEBUG: IMAGE ERROR ===");
+    console.log("Failed to load image:", e.target.src);
+    console.log("Current item:", item);
+
+    setImageError(true);
+
+    const originalSrc = e.target.src;
+    let newSrc = originalSrc;
+
+    // Try different path variations
+    if (originalSrc.includes("/images/") && !originalSrc.includes("/public/")) {
+      newSrc = "/public" + item.image;
+      console.log("Trying with /public prefix:", newSrc);
+    } else if (originalSrc.includes("/public/images/")) {
+      newSrc = item.image.replace("/public", "");
+      console.log("Trying without /public prefix:", newSrc);
+    } else {
+      // Final fallback - hardcoded known working path
+      newSrc = "/public/images/shrimp-fried-rice.jpg";
+      console.log("Using hardcoded fallback:", newSrc);
+    }
+
+    e.target.src = newSrc;
+    setCurrentImagePath(newSrc);
+    console.log("=== END DEBUG ===");
   };
 
   const toggleFavorite = (itemId) => {
@@ -312,9 +378,10 @@ const FoodDetails = () => {
             {/* Main Image */}
             <div className="relative h-56 sm:h-72 md:h-80 lg:h-96 rounded-lg overflow-hidden shadow-md">
               <img
-                src={item.image}
+                src={currentImagePath || item.image}
                 alt={item.name}
                 className="w-full h-full object-cover"
+                onError={handleImageError}
               />
 
               {item.popular && (

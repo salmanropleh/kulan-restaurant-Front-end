@@ -4,12 +4,16 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   BarChart3, // Dashboard
+  Users, // Users
   LayoutGrid, // Categories
   Pizza, // Menu Items
   ShoppingCart, // Orders
   ClipboardList, // Order Items
   Calendar, // Reservations
   Mail, // Messages
+  Image, // Gallery
+  Star, // Testimonials
+  Heart, // Favorites
   Settings, // Settings
   LogOut, // Logout
 } from "lucide-react";
@@ -24,12 +28,16 @@ const Sidebar = ({ currentPath, mobileSidebarOpen, onCloseMobile }) => {
 
   const menuItems = [
     { name: "Dashboard", icon: BarChart3, path: "/admin" },
+    { name: "Users", icon: Users, path: "/admin/users" },
     { name: "Categories", icon: LayoutGrid, path: "/admin/categories" },
     { name: "Menu Items", icon: Pizza, path: "/admin/menu-items" },
     { name: "Orders", icon: ShoppingCart, path: "/admin/orders" },
     { name: "Order Items", icon: ClipboardList, path: "/admin/order-items" },
     { name: "Reservations", icon: Calendar, path: "/admin/reservations" },
     { name: "Messages", icon: Mail, path: "/admin/messages" },
+    { name: "Gallery", icon: Image, path: "/admin/gallery" },
+    { name: "Testimonials", icon: Star, path: "/admin/testimonials" },
+    { name: "Favorites", icon: Heart, path: "/admin/favorites" },
     { name: "Settings", icon: Settings, path: "/admin/settings" },
     { name: "Logout", icon: LogOut, path: "/logout" },
   ];

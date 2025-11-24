@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MapPin, Phone, Mail, Clock, Send, Loader } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import Toast from "../../components/ui/Toast/Toast";
 import { contactAPI } from "../../services/contactAPI";
 
@@ -13,42 +15,100 @@ const Contact = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [error, setError] = useState(null);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Auto-fill form when user logs in or component mounts
+  useEffect(() => {
+    if (user) {
+      setFormData((prevData) => ({
+        ...prevData,
+        name:
+          user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.username || "",
+        email: user.email || "",
+        phone: user.phone_number || "",
+      }));
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-    // Clear error when user starts typing
-    if (error) setError(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check if user is logged in
+    if (!user) {
+      // Store form data in sessionStorage to restore after login
+      sessionStorage.setItem("pendingContactMessage", JSON.stringify(formData));
+      // Redirect to login page
+      navigate("/login", {
+        state: {
+          from: "/contact",
+          message: "Please log in to send a message",
+        },
+      });
+      return;
+    }
+
     setIsLoading(true);
-    setError(null);
+    setShowError(false);
 
     try {
-      const result = await contactAPI.sendMessage(formData);
+      // Make actual API call
+      const response = await contactAPI.sendMessage(formData);
 
+      console.log("Form submitted successfully:", response);
+      setIsLoading(false);
       setShowSuccess(true);
 
-      // Reset form
+      // Reset form but keep user info
       setFormData({
-        name: "",
-        email: "",
-        phone: "",
+        name:
+          user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.username || "",
+        email: user.email || "",
+        phone: user.phone_number || "",
         subject: "",
         message: "",
       });
     } catch (error) {
-      console.error("Error sending message:", error);
-      setError(error.message || "Failed to send message. Please try again.");
-    } finally {
+      console.error("Error submitting form:", error);
       setIsLoading(false);
+      setErrorMessage(
+        error.message || "Failed to send message. Please try again."
+      );
+      setShowError(true);
     }
   };
+
+  // Check for pending message after login (when component mounts or user changes)
+  useEffect(() => {
+    if (user) {
+      const pendingMessage = sessionStorage.getItem("pendingContactMessage");
+      if (pendingMessage) {
+        const messageData = JSON.parse(pendingMessage);
+        setFormData(messageData);
+        sessionStorage.removeItem("pendingContactMessage");
+
+        // Show a message that the form has been restored
+        setShowSuccess(true);
+        setErrorMessage(
+          "Welcome back! Your message has been restored. Click send again to submit."
+        );
+      }
+    }
+  }, [user]);
 
   const operatingHours = [
     { day: "Monday - Thursday", hours: "11:00 AM - 10:00 PM" },
@@ -68,9 +128,9 @@ const Contact = () => {
 
       {/* Error Toast */}
       <Toast
-        message={error}
-        isVisible={!!error}
-        onClose={() => setError(null)}
+        message={errorMessage}
+        isVisible={showError}
+        onClose={() => setShowError(false)}
         type="error"
       />
 
@@ -83,6 +143,14 @@ const Contact = () => {
           <p className="text-xl md:text-2xl max-w-3xl mx-auto">
             We'd love to hear from you. Visit us or get in touch!
           </p>
+          {!user && (
+            <div className="mt-4 bg-white/20 rounded-lg p-4 max-w-md mx-auto">
+              <p className="text-sm">
+                💡 <strong>Note:</strong> You need to be logged in to send us a
+                message.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -171,6 +239,34 @@ const Contact = () => {
                   Send Us a Message
                 </h2>
 
+                {!user && (
+                  <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800 flex items-center">
+                      <span className="mr-2">🔒</span>
+                      Please{" "}
+                      <button
+                        onClick={() =>
+                          navigate("/login", { state: { from: "/contact" } })
+                        }
+                        className="text-primary font-semibold underline hover:no-underline mx-1"
+                      >
+                        log in
+                      </button>
+                      to send us a message.
+                    </p>
+                  </div>
+                )}
+
+                {user && (
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-800 flex items-center">
+                      <span className="mr-2">✅</span>
+                      Your profile information has been auto-filled for
+                      convenience.
+                    </p>
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -189,6 +285,7 @@ const Contact = () => {
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
                         placeholder="Your full name"
+                        disabled={!user}
                       />
                     </div>
 
@@ -208,6 +305,7 @@ const Contact = () => {
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
                         placeholder="your.email@example.com"
+                        disabled={!user}
                       />
                     </div>
                   </div>
@@ -228,6 +326,7 @@ const Contact = () => {
                         onChange={handleChange}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
                         placeholder="+1 (555) 123-4567"
+                        disabled={!user}
                       />
                     </div>
 
@@ -245,6 +344,7 @@ const Contact = () => {
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
+                        disabled={!user}
                       >
                         <option value="">Select a subject</option>
                         <option value="reservation">Reservation Inquiry</option>
@@ -272,18 +372,24 @@ const Contact = () => {
                       rows={6}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors hover:border-primary/50"
                       placeholder="Tell us how we can help you..."
+                      disabled={!user}
                     />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || !user}
                     className="w-full bg-primary text-white py-4 px-6 rounded-lg font-semibold hover:bg-accent disabled:bg-gray-400 transition-all duration-200 flex items-center justify-center space-x-2 transform hover:scale-105 disabled:scale-100"
                   >
                     {isLoading ? (
                       <>
                         <Loader className="h-5 w-5 animate-spin" />
                         <span>Processing...</span>
+                      </>
+                    ) : !user ? (
+                      <>
+                        <Send className="h-5 w-5" />
+                        <span>Log In to Send Message</span>
                       </>
                     ) : (
                       <>

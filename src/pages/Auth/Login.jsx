@@ -1,4 +1,3 @@
-// pages/Login.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Utensils, Sprout, Star } from "lucide-react";
@@ -22,12 +21,10 @@ const Login = () => {
   // Load saved credentials on component mount
   useEffect(() => {
     const savedEmail = localStorage.getItem("kulanRememberEmail");
-    const savedPassword = localStorage.getItem("kulanRememberPassword");
     const savedRememberMe = localStorage.getItem("kulanRememberMe");
 
-    if (savedRememberMe === "true" && savedEmail && savedPassword) {
+    if (savedRememberMe === "true" && savedEmail) {
       setEmail(savedEmail);
-      setPassword(savedPassword);
       setRememberMe(true);
     }
   }, []);
@@ -36,9 +33,7 @@ const Login = () => {
   const handleRememberMe = (checked) => {
     setRememberMe(checked);
     if (!checked) {
-      // Clear saved credentials if remember me is unchecked
       localStorage.removeItem("kulanRememberEmail");
-      localStorage.removeItem("kulanRememberPassword");
       localStorage.removeItem("kulanRememberMe");
     }
   };
@@ -52,15 +47,12 @@ const Login = () => {
       return;
     }
 
-    // Save credentials if remember me is checked
+    // Save email if remember me is checked
     if (rememberMe) {
       localStorage.setItem("kulanRememberEmail", email);
-      localStorage.setItem("kulanRememberPassword", password);
       localStorage.setItem("kulanRememberMe", "true");
     } else {
-      // Clear saved credentials if remember me is unchecked
       localStorage.removeItem("kulanRememberEmail");
-      localStorage.removeItem("kulanRememberPassword");
       localStorage.removeItem("kulanRememberMe");
     }
 
@@ -70,7 +62,14 @@ const Login = () => {
       setToastMessage("🎉 Login successful!");
       setShowToast(true);
       setTimeout(() => {
-        navigate(from, { replace: true });
+        // SIMPLIFIED: Redirect based on user role only
+        if (result.user.is_staff || result.user.is_superuser) {
+          // Admin users always go to admin dashboard
+          navigate("/admin", { replace: true });
+        } else {
+          // Regular users always go to home page
+          navigate("/", { replace: true });
+        }
       }, 1500);
     } else {
       setToastMessage(result.error || "Login failed");
@@ -212,7 +211,7 @@ const Login = () => {
                   </label>
                 </div>
                 <a
-                  href="#"
+                  href="/forgot-password"
                   className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                 >
                   Forgot password?
@@ -222,9 +221,10 @@ const Login = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition font-medium"
+                disabled={isLoading}
+                className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign In
+                {isLoading ? "Signing in..." : "Sign In"}
               </button>
             </form>
 
@@ -241,7 +241,7 @@ const Login = () => {
               </p>
             </div>
 
-            {/* Demo credentials */}
+            {/* Admin notice */}
             <div className="mt-8">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -249,14 +249,17 @@ const Login = () => {
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="px-2 bg-white text-gray-500">
-                    Demo Credentials
+                    Admin Access
                   </span>
                 </div>
               </div>
 
               <div className="mt-4 text-center">
                 <p className="text-sm text-gray-600">
-                  Use any email and password to login
+                  Admin accounts must be created in the backend
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Use Django admin or management commands
                 </p>
               </div>
             </div>

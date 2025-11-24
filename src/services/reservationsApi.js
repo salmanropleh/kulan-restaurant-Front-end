@@ -1,4 +1,3 @@
-// Front-End\src\services\reservationsApi.js
 import axios from "axios";
 
 const API_BASE_URL = "http://localhost:8000/api";
@@ -56,8 +55,8 @@ export const reservationsApi = {
     }
   },
 
-  // Get all reservations (for admin)
-  getReservations: async (params = {}) => {
+  // Get all reservations for current user
+  getUserReservations: async (params = {}) => {
     try {
       const response = await apiClient.get("/reservations/reservations/", {
         params,
@@ -65,7 +64,35 @@ export const reservationsApi = {
       return response.data;
     } catch (error) {
       throw new Error(
-        error.response?.data?.detail || "Failed to fetch reservations"
+        error.response?.data?.detail || "Failed to fetch user reservations"
+      );
+    }
+  },
+
+  // Get user's upcoming reservations
+  getUpcomingReservations: async () => {
+    try {
+      const response = await apiClient.get(
+        "/reservations/reservations/upcoming/"
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.detail || "Failed to fetch upcoming reservations"
+      );
+    }
+  },
+
+  // Get user's specific reservations
+  getMyReservations: async () => {
+    try {
+      const response = await apiClient.get(
+        "/reservations/reservations/my_reservations/"
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.detail || "Failed to fetch user reservations"
       );
     }
   },
@@ -111,7 +138,35 @@ export const reservationsApi = {
     }
   },
 
-  // Get reservation statistics
+  // Confirm reservation
+  confirmReservation: async (id) => {
+    try {
+      const response = await apiClient.post(
+        `/reservations/reservations/${id}/confirm/`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.detail || "Failed to confirm reservation"
+      );
+    }
+  },
+
+  // Cancel reservation
+  cancelReservation: async (id) => {
+    try {
+      const response = await apiClient.post(
+        `/reservations/reservations/${id}/cancel/`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.detail || "Failed to cancel reservation"
+      );
+    }
+  },
+
+  // Get reservation statistics for current user
   getReservationStats: async () => {
     try {
       const response = await apiClient.get("/reservations/stats/");
@@ -136,20 +191,6 @@ export const reservationsApi = {
     } catch (error) {
       throw new Error(
         error.response?.data?.detail || "Failed to check availability"
-      );
-    }
-  },
-
-  // Get upcoming reservations
-  getUpcomingReservations: async () => {
-    try {
-      const response = await apiClient.get(
-        "/reservations/reservations/upcoming/"
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(
-        error.response?.data?.detail || "Failed to fetch upcoming reservations"
       );
     }
   },

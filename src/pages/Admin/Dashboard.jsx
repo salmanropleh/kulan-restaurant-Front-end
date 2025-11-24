@@ -1,4 +1,4 @@
-// Front-End/src/pages/admin/Dashboard.jsx
+// Front-End/src/pages/Admin/Dashboard.jsx
 import React from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import DashboardLayout from "../../components/layout/DashboardLayout";
@@ -13,6 +13,11 @@ import OrderItems from "./OrderItems";
 import Reservations from "./Reservations";
 import Messages from "./Messages";
 import Settings from "./Settings";
+// Import the new admin pages
+import UsersAdmin from "./Users"; // Updated import name
+import Gallery from "./Gallery";
+import Testimonials from "./Testimonials";
+import Favorites from "./Favorites";
 
 // Main Dashboard Content Component
 const DashboardContent = () => {
@@ -35,6 +40,8 @@ const Dashboard = () => {
     <DashboardLayout currentPath={location.pathname}>
       <Routes>
         <Route path="/" element={<DashboardContent />} />
+        <Route path="/users" element={<UsersAdmin />} />{" "}
+        {/* Updated component name */}
         <Route path="/categories" element={<Categories />} />
         <Route path="/categories/add" element={<div>Add Category Page</div>} />
         <Route
@@ -50,6 +57,9 @@ const Dashboard = () => {
         <Route path="/order-items" element={<OrderItems />} />
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/messages" element={<Messages />} />
+        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/testimonials" element={<Testimonials />} />
+        <Route path="/favorites" element={<Favorites />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </DashboardLayout>

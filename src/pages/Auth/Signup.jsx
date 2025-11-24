@@ -1,4 +1,3 @@
-// Front-End/src/pages/Signup.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Utensils, Phone, User, Mail } from "lucide-react";
@@ -35,7 +34,8 @@ const Signup = () => {
       !formData.lastName ||
       !formData.email ||
       !formData.phone ||
-      !formData.password
+      !formData.password ||
+      !formData.confirmPassword
     ) {
       setToastMessage("Please fill in all fields");
       return false;
@@ -51,7 +51,9 @@ const Signup = () => {
       return false;
     }
 
-    if (!formData.email.includes("@")) {
+    // Enhanced email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
       setToastMessage("Please enter a valid email address");
       return false;
     }
@@ -83,17 +85,10 @@ const Signup = () => {
     );
 
     if (result.success) {
-      setToastMessage(
-        "🎉 Account created successfully! Redirecting to login..."
-      );
+      setToastMessage("🎉 Account created successfully! Welcome to Kulan!");
       setShowToast(true);
       setTimeout(() => {
-        navigate("/login", {
-          state: {
-            prefilledEmail: formData.email,
-            prefilledPassword: formData.password,
-          },
-        });
+        navigate("/");
       }, 1500);
     } else {
       setToastMessage(result.error || "Signup failed");
@@ -395,6 +390,29 @@ const Signup = () => {
                   Sign in here
                 </Link>
               </p>
+            </div>
+
+            {/* Admin notice */}
+            <div className="mt-8">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">
+                    Important Note
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-600">
+                  All accounts created here are regular user accounts
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Admin/staff accounts must be created through Django admin
+                </p>
+              </div>
             </div>
           </div>
         </div>

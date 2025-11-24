@@ -3,6 +3,7 @@ import { ShoppingCart, Plus, Minus, Trash2, ArrowLeft } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import Toast from "../../components/ui/Toast/Toast";
 import { orderApi } from "../../services/orderApi";
+import { useAuth } from "../../context/AuthContext";
 
 const CartPage = () => {
   const [cart, setCart] = useState({
@@ -14,6 +15,7 @@ const CartPage = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadCart();
@@ -26,7 +28,6 @@ const CartPage = () => {
       const cartData = await orderApi.getCart();
       console.log("Cart data loaded:", cartData);
 
-      // Ensure cart data has the expected structure
       if (cartData && cartData.items) {
         setCart(cartData);
       } else {
@@ -107,22 +108,28 @@ const CartPage = () => {
       setShowSuccess(true);
       return;
     }
+
+    if (!user) {
+      navigate("/login", { state: { from: "/checkout" } });
+      return;
+    }
+
     navigate("/checkout");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 flex justify-center items-center">
+      <div className="min-h-screen bg-gray-50 py-8 px-4 flex justify-center items-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="mt-4 text-gray-600">Loading cart...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="mt-3 text-gray-600 text-sm">Loading cart...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50 py-6 px-4">
       <Toast
         message={successMessage}
         isVisible={showSuccess}
@@ -130,28 +137,30 @@ const CartPage = () => {
         type="success"
       />
 
-      <div className="container-custom section-padding">
-        <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-4 sm:p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8 border-b pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 mb-6 pb-4 border-b">
             <Link
               to="/menu"
-              className="flex items-center bg-secondary text-white px-6 py-3 rounded-full font-semibold hover:bg-orange-600 transition-colors duration-200"
+              className="flex items-center justify-center bg-secondary text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full font-semibold hover:bg-orange-600 transition-colors duration-200 w-full sm:w-auto"
             >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              <span>Back to Menu</span>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              <span className="text-sm sm:text-base">Back to Menu</span>
             </Link>
 
-            <h1 className="text-2xl font-bold">Your Order</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-center sm:text-left">
+              Your Order
+            </h1>
 
             {cart.items.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium">
+              <div className="flex items-center justify-center space-x-3 sm:space-x-2">
+                <span className="text-gray-500 bg-gray-100 px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium">
                   {getTotalItems()} {getTotalItems() === 1 ? "item" : "items"}
                 </span>
                 <button
                   onClick={clearCart}
-                  className="text-sm text-red-500 hover:text-red-700 font-semibold"
+                  className="text-xs sm:text-sm text-red-500 hover:text-red-700 font-semibold"
                 >
                   Clear All
                 </button>
@@ -161,177 +170,219 @@ const CartPage = () => {
 
           {/* Empty State */}
           {cart.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <ShoppingCart className="h-16 w-16 text-gray-300 mb-4" />
-              <h2 className="text-2xl font-semibold text-gray-700 mb-2">
+            <div className="flex flex-col items-center justify-center py-12 sm:py-24 text-center">
+              <ShoppingCart className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mb-3 sm:mb-4" />
+              <h2 className="text-lg sm:text-2xl font-semibold text-gray-700 mb-2">
                 Your cart is empty
               </h2>
-              <p className="text-gray-500 mb-6">
+              <p className="text-gray-500 text-sm sm:text-base mb-4 sm:mb-6 px-4">
                 Looks like you haven't added anything yet.
               </p>
               <Link
                 to="/menu"
-                className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-accent transition-all duration-200"
+                className="px-4 py-2 sm:px-6 sm:py-3 bg-primary text-white rounded-lg font-semibold hover:bg-accent transition-all duration-200 text-sm sm:text-base"
               >
                 Browse Menu
               </Link>
             </div>
           ) : (
             <>
-              {/* Table Header */}
-              <div className="grid grid-cols-12 font-semibold text-gray-700 border-b pb-2 mb-4">
-                <div className="col-span-5">ITEM</div>
-                <div className="col-span-3 text-center">QUANTITY</div>
-                <div className="col-span-3 text-center">PRICE</div>
-                <div className="col-span-1 text-center">ACTION</div>
-              </div>
-
               {/* Cart Items */}
-              <div className="divide-y divide-gray-200 mb-8">
+              <div className="space-y-4 mb-6">
                 {cart.items.map((item) => (
                   <div
                     key={item.id}
-                    className="py-4 grid grid-cols-12 items-start"
+                    className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200"
                   >
-                    {/* Item Info */}
-                    <div className="col-span-5 flex items-start space-x-4">
-                      <div className="relative flex-shrink-0">
+                    {/* Item Header - Mobile */}
+                    <div className="flex justify-between items-start mb-3 sm:hidden">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-800 text-base mb-1">
+                          {item.menu_item_details?.name}
+                        </h3>
+                        <div className="text-sm font-semibold text-primary">
+                          ${(item.price * item.quantity).toFixed(2)}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        className="text-red-500 hover:text-red-700 ml-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-start space-x-3 sm:space-x-4">
+                      {/* Item Image */}
+                      <div className="flex-shrink-0">
                         <img
                           src={
                             item.menu_item_details?.image ||
                             "/api/placeholder/300/200"
                           }
                           alt={item.menu_item_details?.name}
-                          className="w-24 rounded-xl object-cover shadow-sm"
-                          style={{
-                            height:
-                              item.extras?.length > 6
-                                ? "170px"
-                                : item.extras?.length > 3
-                                ? "140px"
-                                : item.menu_item_details?.ingredients?.length >
-                                  6
-                                ? "170px"
-                                : item.menu_item_details?.ingredients?.length >
-                                  3
-                                ? "140px"
-                                : "110px",
-                            transition: "height 0.3s ease-in-out",
-                          }}
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover shadow-sm"
                         />
                       </div>
 
-                      <div className="flex flex-col">
-                        <h3 className="font-semibold text-gray-800 text-lg mb-1">
+                      {/* Item Details */}
+                      <div className="flex-1 min-w-0">
+                        {/* Item Name - Desktop */}
+                        <h3 className="font-semibold text-gray-800 text-lg mb-1 hidden sm:block">
                           {item.menu_item_details?.name}
                         </h3>
 
-                        {/* Show extra toppings if they exist, otherwise show ingredients */}
+                        {/* Extras or Ingredients */}
                         {item.extras?.length > 0 ? (
                           <div className="mb-2">
-                            <span className="font-semibold text-gray-700 text-sm">
+                            <span className="font-medium text-gray-700 text-xs sm:text-sm">
                               Extra Toppings:
                             </span>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
+                            <div className="mt-1 space-y-1">
                               {item.extras.map((topping, index) => (
                                 <div
                                   key={index}
-                                  className="flex items-center text-sm text-gray-600"
+                                  className="flex items-center text-xs sm:text-sm text-gray-600"
                                 >
-                                  <span className="mr-2">•</span>
-                                  <span>{topping}</span>
+                                  <span className="mr-1">•</span>
+                                  <span className="truncate">{topping}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                         ) : item.menu_item_details?.ingredients?.length > 0 ? (
                           <div className="mb-2">
-                            <span className="font-semibold text-gray-700 text-sm">
+                            <span className="font-medium text-gray-700 text-xs sm:text-sm">
                               Ingredients:
                             </span>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
-                              {item.menu_item_details.ingredients.map(
-                                (ingredient, index) => (
+                            <div className="mt-1 space-y-1">
+                              {item.menu_item_details.ingredients
+                                .slice(0, 3)
+                                .map((ingredient, index) => (
                                   <div
                                     key={index}
-                                    className="flex items-center text-sm text-gray-600"
+                                    className="flex items-center text-xs sm:text-sm text-gray-600"
                                   >
-                                    <span className="mr-2">•</span>
-                                    <span>{ingredient}</span>
+                                    <span className="mr-1">•</span>
+                                    <span className="truncate">
+                                      {ingredient}
+                                    </span>
                                   </div>
-                                )
+                                ))}
+                              {item.menu_item_details.ingredients.length >
+                                3 && (
+                                <div className="text-xs text-gray-500">
+                                  +
+                                  {item.menu_item_details.ingredients.length -
+                                    3}{" "}
+                                  more
+                                </div>
                               )}
                             </div>
                           </div>
                         ) : null}
 
                         {/* Optional notes and spice */}
-                        <ul className="text-sm text-gray-500 space-y-1">
+                        <div className="space-y-1">
                           {item.spice_level && (
-                            <li>• Spice: {item.spice_level}</li>
+                            <div className="text-xs sm:text-sm text-gray-500">
+                              • Spice: {item.spice_level}
+                            </div>
                           )}
                           {item.special_notes && (
-                            <li>• "{item.special_notes}"</li>
+                            <div className="text-xs sm:text-sm text-gray-500 truncate">
+                              • "{item.special_notes}"
+                            </div>
                           )}
-                        </ul>
+                        </div>
+
+                        {/* Price - Desktop */}
+                        <div className="hidden sm:block mt-2">
+                          <div className="font-semibold text-gray-700">
+                            ${(item.price * item.quantity).toFixed(2)}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            (${parseFloat(item.price).toFixed(2)} each)
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quantity Controls and Delete - Desktop */}
+                      <div className="hidden sm:flex flex-col items-center space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() =>
+                              updateQuantity(item.id, item.quantity - 1)
+                            }
+                            className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="w-6 text-center font-semibold text-sm">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() =>
+                              updateQuantity(item.id, item.quantity + 1)
+                            }
+                            className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
 
-                    {/* Quantity Controls */}
-                    <div className="col-span-3 flex justify-center items-start space-x-2 pt-1">
-                      <button
-                        onClick={() =>
-                          updateQuantity(item.id, item.quantity - 1)
-                        }
-                        className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="w-8 text-center font-semibold">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() =>
-                          updateQuantity(item.id, item.quantity + 1)
-                        }
-                        className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    {/* Price */}
-                    <div className="col-span-3 text-center font-semibold text-gray-700 pt-1">
-                      ${(item.price * item.quantity).toFixed(2)}
+                    {/* Quantity Controls - Mobile */}
+                    <div className="flex items-center justify-between mt-3 sm:hidden">
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() =>
+                            updateQuantity(item.id, item.quantity - 1)
+                          }
+                          className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="w-6 text-center font-semibold">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() =>
+                            updateQuantity(item.id, item.quantity + 1)
+                          }
+                          className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
                       <div className="text-sm text-gray-400">
-                        (${parseFloat(item.price).toFixed(2)} each)
+                        ${parseFloat(item.price).toFixed(2)} each
                       </div>
-                    </div>
-
-                    {/* Delete Action */}
-                    <div className="col-span-1 flex justify-center items-start pt-1">
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
                     </div>
                   </div>
                 ))}
               </div>
 
               {/* Summary */}
-              <div className="border-t pt-6">
-                <div className="flex justify-between items-center mb-6">
-                  <span className="text-xl font-semibold">Total:</span>
-                  <span className="text-3xl font-bold text-primary">
+              <div className="border-t pt-4 sm:pt-6">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <span className="text-lg sm:text-xl font-semibold">
+                    Total:
+                  </span>
+                  <span className="text-2xl sm:text-3xl font-bold text-primary">
                     ${getTotalPrice().toFixed(2)}
                   </span>
                 </div>
                 <button
                   onClick={handleProceedToCheckout}
-                  className="w-full bg-secondary text-white py-4 rounded-lg font-semibold hover:bg-orange-600 transition-all duration-200 transform hover:scale-105 text-lg"
+                  className="w-full bg-secondary text-white py-3 sm:py-4 rounded-lg font-semibold hover:bg-orange-600 transition-all duration-200 text-base sm:text-lg"
                 >
                   Proceed to Checkout
                 </button>
